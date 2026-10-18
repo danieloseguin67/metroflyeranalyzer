@@ -33,6 +33,8 @@ The build output is written to `dist/metro-flyer-grid/browser`.
 
 Grid edits are held in the current browser session. Export a JSON copy if you want to keep changes for later.
 
+Dinner portion presets are configured in [`src/app/dinner-portion-sizes.json`](src/app/dinner-portion-sizes.json). Values are grams per person (raw weight) for `small`, `medium`, and `large`. Edit and commit this file to change the presets; the GitHub Pages workflow includes the updated values in its next build.
+
 The included flyer is a saved snapshot for October 15–21, 2026; refreshing the grid reloads that snapshot and does not fetch live flyer data.
 
 ## Deploy to GitHub Pages

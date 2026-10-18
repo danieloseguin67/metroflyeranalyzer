@@ -3,6 +3,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FlyerItem, metroDollardFlyer } from './metro-dollard-flyer';
 import { frenchItemNames } from './item-translations';
+import portionSizeConfig from './dinner-portion-sizes.json';
 
 type ItemDraft = Omit<FlyerItem, 'id'>;
 
@@ -33,10 +34,10 @@ type ItemDraft = Omit<FlyerItem, 'id'>;
             <div class="dinner-controls">
               <label>{{ tr('Meat or fish', 'Viande ou poisson') }}<select [ngModel]="dinnerItemId()" (ngModelChange)="dinnerItemId.set($event)"><option *ngFor="let item of proteinItems()" [value]="item.id">{{ displayItemName(item) }}</option></select></label>
               <label>{{ tr('People', 'Personnes') }}<input type="number" min="1" max="50" [ngModel]="dinnerPeople()" (ngModelChange)="dinnerPeople.set(numberInRange($event, 1, 50, true))"></label>
-              <label>{{ tr('Portion per person', 'Portion par personne') }} ({{ measureSystem() === 'metric' ? 'g' : 'oz' }})<input type="number" min="1" [attr.max]="measureSystem() === 'metric' ? 2000 : 70" [attr.step]="measureSystem() === 'metric' ? 25 : 1" [ngModel]="displayPortion()" (ngModelChange)="setDisplayPortion($event)"></label>
+              <label>{{ tr('Portion size', 'Taille de la portion') }}<select [ngModel]="portionSize()" (ngModelChange)="setPortionSize($event)"><option value="small">{{ tr('Small', 'Petite') }}</option><option value="medium">{{ tr('Medium', 'Moyenne') }}</option><option value="large">{{ tr('Large', 'Grande') }}</option></select></label>
               <div class="dinner-result"><small>{{ tr('ESTIMATED AMOUNT TO BUY', 'QUANTITÉ ESTIMÉE À ACHETER') }}</small><strong *ngIf="measureSystem() === 'metric'">{{ dinnerTotalGrams() | number:'1.0-0' }} g</strong><strong *ngIf="measureSystem() === 'imperial'">{{ dinnerTotalOunces() | number:'1.1-1' }} oz</strong><span *ngIf="measureSystem() === 'metric'">{{ dinnerTotalKilograms() | number:'1.2-2' }} kg</span><span *ngIf="measureSystem() === 'imperial'">{{ dinnerTotalPounds() | number:'1.2-2' }} lb</span></div>
             </div>
-            <p class="dinner-hint">{{ tr('Raw-weight estimate: 200 g per person. Adjust for appetites and side dishes.', 'Estimation de départ : 200 g par personne. Ajustez la portion selon l’appétit et les accompagnements.') }}</p>
+            <p class="dinner-hint">{{ tr("Portion amounts use raw weight; adjust as needed.", "Les portions sont en poids cru; ajustez au besoin.") }}</p>
           </section>
           <div class="stat-row"><div class="stat-card"><div class="stat-label">{{ tr("ITEMS IN YOUR GRID", "ARTICLES DANS LA GRILLE") }} <span class="stat-icon peach">▦</span></div><div class="stat-value">{{ items().length }}<small>{{ tr("items", "articles") }}</small></div><div class="stat-foot">{{ tr("Across", "Dans") }} {{ categories().length }} {{ tr("categories", "catégories") }}</div></div><div class="stat-card"><div class="stat-label">{{ tr("AVERAGE DEAL", "ÉCONOMIE MOYENNE") }} <span class="stat-icon mint">↘</span></div><div class="stat-value">{{ savingsPercent() }}<small>{{ tr("% off", "de rabais") }}</small></div><div class="stat-foot">{{ tr("Compared with regular price", "par rapport au prix régulier") }}</div></div><div class="stat-card flyer-card"><div class="stat-label">{{ tr("THIS WEEK AT METRO", "CETTE SEMAINE CHEZ METRO") }} <span class="live-dot"></span></div><div class="flyer-info"><div class="calendar-icon"><b>{{ today | date:'d' }}</b><small>{{ language() === 'fr' ? frenchMonth : (today | date:'MMM') }}</small></div><div><strong>{{ tr("Fresh deals, every week", "De nouvelles offres chaque semaine") }}</strong><span>{{ tr("Check your local store for dates", "Vérifiez les dates auprès de votre magasin") }}</span></div></div><a href="https://www.metro.ca/circulaire" target="_blank" rel="noopener">{{ tr("View current flyer", "Voir le circulaire actuel") }} ↗</a></div></div>
 
@@ -72,7 +73,8 @@ export class AppComponent {
   readonly proteinItems = computed(() => this.items().filter(item => item.category === 'Meat & seafood'));
   readonly dinnerItemId = signal(metroDollardFlyer.items.find(item => item.category === 'Meat & seafood')?.id ?? '');
   readonly dinnerPeople = signal(4);
-  readonly portionGrams = signal(200);
+  readonly portionSize = signal<'small' | 'medium' | 'large'>('medium');
+  readonly portionGrams = computed(() => portionSizeConfig[this.portionSize()]);
   readonly measureSystem = signal<'metric' | 'imperial'>('metric');
   readonly dinnerTotalGrams = computed(() => this.dinnerPeople() * this.portionGrams());
   readonly dinnerTotalPounds = computed(() => this.dinnerTotalGrams() / 453.59237);
@@ -121,10 +123,8 @@ export class AppComponent {
     const bounded = Math.min(max, Math.max(min, safeValue));
     return wholeNumber ? Math.round(bounded) : bounded;
   }
-  displayPortion(): number { return this.measureSystem() === 'metric' ? this.portionGrams() : this.portionGrams() / 28.349523125; }
-  setDisplayPortion(value: string | number): void {
-    const amountInGrams = this.measureSystem() === 'metric' ? Number(value) : Number(value) * 28.349523125;
-    this.portionGrams.set(this.numberInRange(amountInGrams, 1, 2000));
+  setPortionSize(value: string): void {
+    if (value === 'small' || value === 'medium' || value === 'large') this.portionSize.set(value);
   }
   displaySize(size: string): string {
     if (this.measureSystem() === 'imperial') {
