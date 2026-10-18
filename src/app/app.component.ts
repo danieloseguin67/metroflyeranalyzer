@@ -32,11 +32,11 @@ type ItemDraft = Omit<FlyerItem, 'id'>;
             <div class="dinner-intro"><span class="dinner-icon">♨</span><div><h2 id="dinner-title">{{ tr('Dinner quantity calculator', 'Calculateur de quantité pour le repas') }}</h2><p>{{ tr('Estimate how much meat or fish to buy for dinner.', 'Estimez la quantité de viande ou de poisson à acheter pour le repas.') }}</p></div></div>
             <div class="dinner-controls">
               <label>{{ tr('Meat or fish', 'Viande ou poisson') }}<select [ngModel]="dinnerItemId()" (ngModelChange)="dinnerItemId.set($event)"><option *ngFor="let item of proteinItems()" [value]="item.id">{{ displayItemName(item) }}</option></select></label>
-              <label>{{ tr('People', 'Personnes') }}<input type="number" min="1" max="50" [ngModel]="dinnerPeople()" (ngModelChange)="dinnerPeople.set(numberAtLeastOne($event))"></label>
-              <label>{{ tr('Portion per person (g)', 'Portion par personne (g)') }}<input type="number" min="1" max="2000" step="25" [ngModel]="portionGrams()" (ngModelChange)="portionGrams.set(numberAtLeastOne($event))"></label>
+              <label>{{ tr('People', 'Personnes') }}<input type="number" min="1" max="50" [ngModel]="dinnerPeople()" (ngModelChange)="dinnerPeople.set(numberInRange($event, 1, 50, true))"></label>
+              <label>{{ tr('Portion per person (g)', 'Portion par personne (g)') }}<input type="number" min="1" max="2000" step="25" [ngModel]="portionGrams()" (ngModelChange)="portionGrams.set(numberInRange($event, 1, 2000))"></label>
               <div class="dinner-result"><small>{{ tr('ESTIMATED AMOUNT TO BUY', 'QUANTITÉ ESTIMÉE À ACHETER') }}</small><strong>{{ dinnerTotalGrams() | number:'1.0-0' }} g</strong><span>{{ dinnerTotalPounds() | number:'1.2-2' }} lb</span></div>
             </div>
-            <p class="dinner-hint">{{ tr('Starting estimate: 200 g per person. Adjust the portion for appetites and side dishes.', 'Estimation de départ : 200 g par personne. Ajustez la portion selon l’appétit et les accompagnements.') }}</p>
+            <p class="dinner-hint">{{ tr('Raw-weight estimate: 200 g per person. Adjust for appetites and side dishes.', 'Estimation de départ : 200 g par personne. Ajustez la portion selon l’appétit et les accompagnements.') }}</p>
           </section>
           <div class="stat-row"><div class="stat-card"><div class="stat-label">{{ tr("ITEMS IN YOUR GRID", "ARTICLES DANS LA GRILLE") }} <span class="stat-icon peach">▦</span></div><div class="stat-value">{{ items().length }}<small>{{ tr("items", "articles") }}</small></div><div class="stat-foot">{{ tr("Across", "Dans") }} {{ categories().length }} {{ tr("categories", "catégories") }}</div></div><div class="stat-card"><div class="stat-label">{{ tr("AVERAGE DEAL", "ÉCONOMIE MOYENNE") }} <span class="stat-icon mint">↘</span></div><div class="stat-value">{{ savingsPercent() }}<small>{{ tr("% off", "de rabais") }}</small></div><div class="stat-foot">{{ tr("Compared with regular price", "par rapport au prix régulier") }}</div></div><div class="stat-card flyer-card"><div class="stat-label">{{ tr("THIS WEEK AT METRO", "CETTE SEMAINE CHEZ METRO") }} <span class="live-dot"></span></div><div class="flyer-info"><div class="calendar-icon"><b>{{ today | date:'d' }}</b><small>{{ language() === 'fr' ? frenchMonth : (today | date:'MMM') }}</small></div><div><strong>{{ tr("Fresh deals, every week", "De nouvelles offres chaque semaine") }}</strong><span>{{ tr("Check your local store for dates", "Vérifiez les dates auprès de votre magasin") }}</span></div></div><a href="https://www.metro.ca/circulaire" target="_blank" rel="noopener">{{ tr("View current flyer", "Voir le circulaire actuel") }} ↗</a></div></div>
 
@@ -112,7 +112,12 @@ export class AppComponent {
   }
   categoryLabel(category: string): string { return this.tr(category, this.frenchCategory(category)); }
   displayItemName(item: FlyerItem): string { return this.language() === 'fr' ? (frenchItemNames[item.item] ?? item.item) : item.item; }
-  numberAtLeastOne(value: string | number): number { const parsed = Number(value); return Number.isFinite(parsed) ? Math.max(1, parsed) : 1; }
+  numberInRange(value: string | number, min: number, max: number, wholeNumber = false): number {
+    const parsed = Number(value);
+    const safeValue = Number.isFinite(parsed) ? parsed : min;
+    const bounded = Math.min(max, Math.max(min, safeValue));
+    return wholeNumber ? Math.round(bounded) : bounded;
+  }
   emptyDraft(): ItemDraft { return { category: 'Produce', item: '', size: '', price: null, unit: 'each', regularPrice: null, note: '' }; }
   discount(item: FlyerItem): number | null { return item.price !== null && item.regularPrice !== null && item.regularPrice > item.price ? Math.round((1 - item.price / item.regularPrice) * 100) : null; }
   iconFor(category: string): string { return ({ 'Produce':'✳', 'Meat & seafood':'◒', 'Dairy & eggs':'◉', 'Pantry':'▤', 'Bakery':'♨', 'Frozen':'❄' } as Record<string,string>)[category] || '✳'; }
