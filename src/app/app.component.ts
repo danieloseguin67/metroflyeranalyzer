@@ -20,7 +20,7 @@ type ItemDraft = Omit<FlyerItem, 'id'>;
       </aside>
 
       <main class="main">
-        <header class="topbar"><div class="crumb">{{ tr("My lists", "Mes listes") }} <span>/</span> <b>{{ displayListName() }}</b></div><div class="top-actions"><div class="language-switch" role="group" [attr.aria-label]="tr('Select language', 'Choisir la langue')"><button type="button" [class.active]="language() === 'en'" [attr.aria-pressed]="language() === 'en'" [attr.aria-label]="tr('English', 'Anglais')" (click)="setLanguage('en')">EN</button><button type="button" [class.active]="language() === 'fr'" [attr.aria-pressed]="language() === 'fr'" [attr.aria-label]="tr('French', 'Français')" (click)="setLanguage('fr')">FR</button></div><span class="week-chip"><i></i>{{ tr("WEEKLY FLYER", "CIRCULAIRE") }}</span><button class="icon-button" [title]="tr('Notifications', 'Avis')" [attr.aria-label]="tr('Notifications', 'Avis')">♧</button><div class="avatar small">M</div></div></header>
+        <header class="topbar"><div class="crumb">{{ tr("My lists", "Mes listes") }} <span>/</span> <b>{{ displayListName() }}</b></div><div class="top-actions"><div class="language-switch" role="group" [attr.aria-label]="tr('Select language', 'Choisir la langue')"><button type="button" [class.active]="language() === 'en'" [attr.aria-pressed]="language() === 'en'" [attr.aria-label]="tr('English', 'Anglais')" (click)="setLanguage('en')">EN</button><button type="button" [class.active]="language() === 'fr'" [attr.aria-pressed]="language() === 'fr'" [attr.aria-label]="tr('French', 'Français')" (click)="setLanguage('fr')">FR</button></div><div class="measure-switch" role="group" [attr.aria-label]="tr('Select measurement system', 'Choisir le système de mesure')"><button type="button" [class.active]="measureSystem() === 'metric'" [attr.aria-pressed]="measureSystem() === 'metric'" (click)="measureSystem.set('metric')">{{ tr('METRIC', 'MÉTRIQUE') }}</button><button type="button" [class.active]="measureSystem() === 'imperial'" [attr.aria-pressed]="measureSystem() === 'imperial'" (click)="measureSystem.set('imperial')">{{ tr('IMPERIAL', 'IMPÉRIAL') }}</button></div><span class="week-chip"><i></i>{{ tr("WEEKLY FLYER", "CIRCULAIRE") }}</span><button class="icon-button" [title]="tr('Notifications', 'Avis')" [attr.aria-label]="tr('Notifications', 'Avis')">♧</button><div class="avatar small">M</div></div></header>
         <section class="content">
           <div class="heading-row"><div><div class="eyebrow"><span class="eyebrow-line"></span>{{ tr("METRO · WEEKLY DEALS", "METRO · OFFRES DE LA SEMAINE") }}</div><h1>{{ displayListName() }}</h1><p class="subtitle">{{ tr("Your flyer, neatly sorted. Keep the good stuff in sight.", "Votre circulaire bien organisé. Gardez les bonnes offres à portée de main.") }}</p></div><div class="heading-actions"><a class="button secondary" href="https://www.metro.ca/circulaire" target="_blank" rel="noopener"><span class="button-symbol">↗</span>{{ tr("Open Metro flyer", "Voir le circulaire Metro") }}</a><button class="button primary" (click)="downloadJson()"><span class="button-symbol">↓</span>{{ tr("Export JSON", "Exporter JSON") }}</button></div></div>
 
@@ -33,8 +33,8 @@ type ItemDraft = Omit<FlyerItem, 'id'>;
             <div class="dinner-controls">
               <label>{{ tr('Meat or fish', 'Viande ou poisson') }}<select [ngModel]="dinnerItemId()" (ngModelChange)="dinnerItemId.set($event)"><option *ngFor="let item of proteinItems()" [value]="item.id">{{ displayItemName(item) }}</option></select></label>
               <label>{{ tr('People', 'Personnes') }}<input type="number" min="1" max="50" [ngModel]="dinnerPeople()" (ngModelChange)="dinnerPeople.set(numberInRange($event, 1, 50, true))"></label>
-              <label>{{ tr('Portion per person (g)', 'Portion par personne (g)') }}<input type="number" min="1" max="2000" step="25" [ngModel]="portionGrams()" (ngModelChange)="portionGrams.set(numberInRange($event, 1, 2000))"></label>
-              <div class="dinner-result"><small>{{ tr('ESTIMATED AMOUNT TO BUY', 'QUANTITÉ ESTIMÉE À ACHETER') }}</small><strong>{{ dinnerTotalGrams() | number:'1.0-0' }} g</strong><span>{{ dinnerTotalPounds() | number:'1.2-2' }} lb</span></div>
+              <label>{{ tr('Portion per person', 'Portion par personne') }} ({{ measureSystem() === 'metric' ? 'g' : 'oz' }})<input type="number" min="1" [attr.max]="measureSystem() === 'metric' ? 2000 : 70" [attr.step]="measureSystem() === 'metric' ? 25 : 1" [ngModel]="displayPortion()" (ngModelChange)="setDisplayPortion($event)"></label>
+              <div class="dinner-result"><small>{{ tr('ESTIMATED AMOUNT TO BUY', 'QUANTITÉ ESTIMÉE À ACHETER') }}</small><strong *ngIf="measureSystem() === 'metric'">{{ dinnerTotalGrams() | number:'1.0-0' }} g</strong><strong *ngIf="measureSystem() === 'imperial'">{{ dinnerTotalOunces() | number:'1.1-1' }} oz</strong><span *ngIf="measureSystem() === 'metric'">{{ dinnerTotalKilograms() | number:'1.2-2' }} kg</span><span *ngIf="measureSystem() === 'imperial'">{{ dinnerTotalPounds() | number:'1.2-2' }} lb</span></div>
             </div>
             <p class="dinner-hint">{{ tr('Raw-weight estimate: 200 g per person. Adjust for appetites and side dishes.', 'Estimation de départ : 200 g par personne. Ajustez la portion selon l’appétit et les accompagnements.') }}</p>
           </section>
@@ -43,7 +43,7 @@ type ItemDraft = Omit<FlyerItem, 'id'>;
           <div class="table-card">
             <div class="table-head"><div><h2>{{ tr("Flyer items", "Articles du circulaire") }} <span class="total-pill">{{ filteredItems().length }}</span></h2><p>{{ tr("Sorted by category, then item name", "Triés par catégorie, puis par nom") }}</p></div><div class="table-controls"><label class="search-box"><span>⌕</span><input [ngModel]="search()" (ngModelChange)="setSearch($event)" [placeholder]="tr('Search category or item…', 'Rechercher une catégorie ou un article…')" [attr.aria-label]="tr('Search category or item', 'Rechercher une catégorie ou un article')"><kbd>⌘ K</kbd></label><button class="filter-button" (click)="toggleCategoryMenu()">☷ <span>{{ selectedCategory() ? categoryLabel(selectedCategory()) : tr('All categories', 'Toutes les catégories') }}</span>⌄</button><div class="category-menu" *ngIf="categoryMenu()"><button (click)="setCategory('')">{{ tr("All categories", "Toutes les catégories") }}</button><button *ngFor="let category of categories()" (click)="setCategory(category)">{{ categoryLabel(category) }}</button></div><button class="button add-button" (click)="openAdd()"><span>+</span>{{ tr("Add item", "Ajouter") }}</button><button class="more-button" [title]="tr('More actions', 'Plus d’options')" (click)="downloadJson()">···</button></div></div>
             <div class="table-scroll"><table><thead><tr><th class="check-col"><input type="checkbox" [checked]="allChecked()" (change)="toggleAll($event)" [attr.aria-label]="tr('Select all visible items', 'Sélectionner tous les articles visibles')"></th><th>{{ tr("ITEM", "ARTICLE") }} <span>↕</span></th><th>{{ tr("CATEGORY", "CATÉGORIE") }} <span>↕</span></th><th>{{ tr("SIZE / FORMAT", "FORMAT") }}</th><th>{{ tr("SALE PRICE", "PRIX EN SOLDE") }} <span>↕</span></th><th>{{ tr("REGULAR", "RÉGULIER") }}</th><th>{{ tr("DEAL", "OFFRE") }}</th><th></th></tr></thead><tbody>
-              <tr *ngFor="let item of pageItems(); let i = index" [class.selected]="isChecked(item.id)"><td><input type="checkbox" [checked]="isChecked(item.id)" (change)="toggleItem(item.id)" [attr.aria-label]="tr('Select ' + displayItemName(item), 'Sélectionner ' + displayItemName(item))"></td><td><div class="item-cell"><span class="item-thumb" [class]="'item-thumb thumb-' + (i % 6)">{{ iconFor(item.category) }}</span><span><strong>{{ displayItemName(item) }}</strong><small>{{ item.note || tr('Metro weekly flyer', 'Circulaire hebdomadaire Metro') }}</small></span></div></td><td><span class="category-tag" [class]="'category-tag cat-' + categoryClass(item.category)"><i></i>{{ categoryLabel(item.category) }}</span></td><td class="muted-cell">{{ item.size }}</td><td><strong class="sale-price">{{ formatPrice(item.price) }}<small> / {{ language() === 'fr' ? frenchUnit(item.unit) : item.unit }}</small></strong></td><td class="regular-price">{{ formatPrice(item.regularPrice) }}</td><td><span class="deal-badge" *ngIf="discount(item) as deal">-{{ deal }}%</span><span class="no-deal" *ngIf="!discount(item)">—</span></td><td><button class="row-menu" [attr.aria-label]="tr('Delete ' + displayItemName(item), 'Supprimer ' + displayItemName(item))" [title]="tr('Delete item', 'Supprimer l’article')" (click)="remove(item.id)">×</button></td></tr>
+              <tr *ngFor="let item of pageItems(); let i = index" [class.selected]="isChecked(item.id)"><td><input type="checkbox" [checked]="isChecked(item.id)" (change)="toggleItem(item.id)" [attr.aria-label]="tr('Select ' + displayItemName(item), 'Sélectionner ' + displayItemName(item))"></td><td><div class="item-cell"><span class="item-thumb" [class]="'item-thumb thumb-' + (i % 6)">{{ iconFor(item.category) }}</span><span><strong>{{ displayItemName(item) }}</strong><small>{{ item.note || tr('Metro weekly flyer', 'Circulaire hebdomadaire Metro') }}</small></span></div></td><td><span class="category-tag" [class]="'category-tag cat-' + categoryClass(item.category)"><i></i>{{ categoryLabel(item.category) }}</span></td><td class="muted-cell">{{ displaySize(item.size) }}</td><td><strong class="sale-price">{{ formatPrice(displayPrice(item.price, item.unit)) }}<small> / {{ displayPriceUnit(item.unit) }}</small></strong></td><td class="regular-price">{{ formatPrice(displayPrice(item.regularPrice, item.unit)) }}</td><td><span class="deal-badge" *ngIf="discount(item) as deal">-{{ deal }}%</span><span class="no-deal" *ngIf="!discount(item)">—</span></td><td><button class="row-menu" [attr.aria-label]="tr('Delete ' + displayItemName(item), 'Supprimer ' + displayItemName(item))" [title]="tr('Delete item', 'Supprimer l’article')" (click)="remove(item.id)">×</button></td></tr>
               <tr *ngIf="filteredItems().length === 0"><td colspan="8" class="empty-state"><span>⌕</span><strong>{{ tr("No items found", "Aucun article trouvé") }}</strong><small>{{ tr("Try another search or add an item to this flyer.", "Essayez une autre recherche ou ajoutez un article.") }}</small></td></tr>
             </tbody></table></div>
             <div class="table-foot"><span>{{ tr("Showing", "Affichage") }} <b>{{ showingStart() }}–{{ showingEnd() }}</b> {{ tr('of', 'sur') }} <b>{{ filteredItems().length }}</b> {{ tr("items", "articles") }}</span><span class="foot-legend"><i></i>{{ tr("Deal price is lower than regular price", "Le prix en solde est inférieur au prix régulier") }}</span><div class="pagination" [attr.aria-label]="tr('Flyer item pages', 'Pages des articles du circulaire')"><button (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() === 1">{{ tr("Prior", "Précédent") }}</button><span>{{ tr('Page', 'Page') }} {{ currentPage() }} {{ tr('of', 'sur') }} {{ totalPages() }}</span><button (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() === totalPages()">{{ tr("Next", "Suivant") }}</button></div><button class="json-mini" (click)="fileInput.click()">{{ tr("↑ Import JSON", "Importer JSON") }}</button></div>
@@ -73,8 +73,11 @@ export class AppComponent {
   readonly dinnerItemId = signal(metroDollardFlyer.items.find(item => item.category === 'Meat & seafood')?.id ?? '');
   readonly dinnerPeople = signal(4);
   readonly portionGrams = signal(200);
+  readonly measureSystem = signal<'metric' | 'imperial'>('metric');
   readonly dinnerTotalGrams = computed(() => this.dinnerPeople() * this.portionGrams());
   readonly dinnerTotalPounds = computed(() => this.dinnerTotalGrams() / 453.59237);
+  readonly dinnerTotalKilograms = computed(() => this.dinnerTotalGrams() / 1000);
+  readonly dinnerTotalOunces = computed(() => this.dinnerTotalGrams() / 28.349523125);
   readonly filteredItems = computed(() => {
     const query = this.search().trim().toLowerCase(); const category = this.selectedCategory();
     return [...this.items()].filter(x => (!category || x.category === category) && (!query || x.category.toLowerCase().includes(query) || this.frenchCategory(x.category).toLowerCase().includes(query) || x.item.toLowerCase().includes(query) || this.displayItemName(x).toLowerCase().includes(query))).sort((a,b) => a.category.localeCompare(b.category) || this.displayItemName(a).localeCompare(this.displayItemName(b)));
@@ -117,6 +120,35 @@ export class AppComponent {
     const safeValue = Number.isFinite(parsed) ? parsed : min;
     const bounded = Math.min(max, Math.max(min, safeValue));
     return wholeNumber ? Math.round(bounded) : bounded;
+  }
+  displayPortion(): number { return this.measureSystem() === 'metric' ? this.portionGrams() : this.portionGrams() / 28.349523125; }
+  setDisplayPortion(value: string | number): void {
+    const amountInGrams = this.measureSystem() === 'metric' ? Number(value) : Number(value) * 28.349523125;
+    this.portionGrams.set(this.numberInRange(amountInGrams, 1, 2000));
+  }
+  displaySize(size: string): string {
+    if (this.measureSystem() === 'imperial') {
+      return size
+        .replace(/(\d+(?:\.\d+)?)\s*kg\b/gi, (_match, amount: string) => `${(Number(amount) * 2.20462262).toFixed(2)} lb`)
+        .replace(/(\d+(?:\.\d+)?)\s*g\b/gi, (_match, amount: string) => `${(Number(amount) / 28.349523125).toFixed(1)} oz`)
+        .replace(/(\d+(?:\.\d+)?)\s*L\b/g, (_match, amount: string) => `${(Number(amount) * 33.814).toFixed(1)} fl oz`);
+    }
+    return size
+      .replace(/(\d+)\s*[–-]\s*(\d+)\s+shrimp per lb/gi, (_match, low: string, high: string) => `${Math.round(Number(low) * 2.20462262)}–${Math.round(Number(high) * 2.20462262)} shrimp per kg`)
+      .replace(/(\d+(?:\.\d+)?)\s*kg\b/gi, (_match, amount: string) => `${(Number(amount) * 1000).toFixed(0)} g`)
+      .replace(/(\d+(?:\.\d+)?)\s*lb\b/gi, (_match, amount: string, offset: number, source: string) => source.slice(Math.max(0, offset - 4), offset).toLowerCase().includes('per ') ? `${amount} lb` : `${(Number(amount) * 453.59237).toFixed(0)} g`);
+  }
+  displayPriceUnit(unit: string): string {
+    if (unit === 'lb' || unit === '100 g') return this.measureSystem() === 'metric' ? 'kg' : 'lb';
+    return this.language() === 'fr' ? this.frenchUnit(unit) : unit;
+  }
+  displayPrice(price: number | null, unit: string): number | null {
+    if (price === null) return null;
+    if (this.measureSystem() === 'metric') {
+      if (unit === 'lb') return price * 2.20462262;
+      if (unit === '100 g') return price * 10;
+    } else if (unit === '100 g') return price * 4.5359237;
+    return price;
   }
   emptyDraft(): ItemDraft { return { category: 'Produce', item: '', size: '', price: null, unit: 'each', regularPrice: null, note: '' }; }
   discount(item: FlyerItem): number | null { return item.price !== null && item.regularPrice !== null && item.regularPrice > item.price ? Math.round((1 - item.price / item.regularPrice) * 100) : null; }
