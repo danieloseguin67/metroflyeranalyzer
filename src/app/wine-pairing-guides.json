@@ -1,0 +1,16 @@
+{
+  "source": "User-provided pairing guide",
+  "profiles": [
+    {"id":"dry","name":"Vin sec","profile":"Droit, net, sans sucre.","proteins":["poultry","pork","veal","charcuterie","white-fish","fish","shrimp","scallops"],"wineCategories":["white","sparkling","rose"]},
+    {"id":"fruity","name":"Vin fruité","profile":"Gourmand, arômes de fruits rouges ou blancs.","proteins":["pork","poultry","salmon","trout","shrimp","seafood"],"wineCategories":["red","white","rose"]},
+    {"id":"floral","name":"Vin floral","profile":"Délicat, aromatique.","proteins":["poultry","white-fish","sole","turbot","scallops","oysters"],"wineCategories":["white","rose","sparkling"]},
+    {"id":"mineral","name":"Vin minéral","profile":"Salin, pierreux, très frais.","proteins":["poultry","white-fish","fish","sushi","oysters","clams","mussels"],"wineCategories":["white","sparkling"]},
+    {"id":"spicy","name":"Vin épicé","profile":"Poivre, cannelle, réglisse.","proteins":["bbq","grilled-meat","lamb","marinated-meat","salmon","shrimp","octopus"],"wineCategories":["red","rose"]},
+    {"id":"oaky","name":"Vin boisé","profile":"Vanille, toast, beurre, noisette.","proteins":["poultry","pork","veal","creamy-dishes","salmon","cod","fish","scallops","lobster"],"wineCategories":["red","white"]},
+    {"id":"tannic","name":"Vin tannique","profile":"Bouche sèche, structure, puissance.","proteins":["beef","steak","game","lamb"],"avoid":["fish","seafood"],"wineCategories":["red"]},
+    {"id":"crisp","name":"Vin vif / acide","profile":"Très frais, énergique.","proteins":["poultry","lemon-dishes","asian-dishes","white-fish","fish","sushi","salmon-tartare","oysters","shrimp","mussels"],"wineCategories":["white","sparkling","rose"]},
+    {"id":"rich","name":"Vin gras","profile":"Ample, rond, riche.","proteins":["creamy-chicken","pork","veal","salmon","cod","lobster","scallops","shrimp"],"wineCategories":["white","red"]},
+    {"id":"full-bodied","name":"Vin corsé","profile":"Puissant, alcool élevé, charnu.","proteins":["beef","braised-beef","ribs","lamb","game"],"avoid":["fish","seafood"],"wineCategories":["red"]},
+    {"id":"light","name":"Vin aérien / léger","profile":"Fin, délicat.","proteins":["poultry","turkey","charcuterie","white-fish","fish","sushi","shrimp","scallops"],"wineCategories":["white","rose","sparkling"]}
+  ]
+}

@@ -8,11 +8,14 @@ import redWines from './wines-red.json';
 import whiteWines from './wines-white.json';
 import roseWines from './wines-rose.json';
 import sparklingWines from './wines-sparkling.json';
+import winePairingGuide from './wine-pairing-guides.json';
 
 type ItemDraft = Omit<FlyerItem, 'id'>;
 type DinnerCostEstimate = { total: number; quantity: number; unit: string; unitPrice: number; priceUnit: string };
 type Wine = { id: string; name: string; brand: string; category: string; grapes: string; sizeMl: number; price: number | null; regularPrice: number | null; pairings: string[]; sourceUrl: string };
+type WineProfile = { id: string; name: string; profile: string; proteins: string[]; avoid?: string[]; wineCategories: string[] };
 const wineCatalog = [...redWines, ...whiteWines, ...roseWines, ...sparklingWines] as Wine[];
+const wineProfiles = winePairingGuide.profiles as WineProfile[];
 
 @Component({
   selector: 'app-root', standalone: true, imports: [CommonModule, FormsModule],
@@ -51,7 +54,9 @@ const wineCatalog = [...redWines, ...whiteWines, ...roseWines, ...sparklingWines
             <p class="dinner-hint">{{ tr("Portion amounts use raw weight; adjust as needed.", "Les portions sont en poids cru; ajustez au besoin.") }}</p>
           </section>
           <section class="wine-panel" aria-labelledby="wine-title">
-            <div class="wine-heading"><div><div class="eyebrow">{{ tr('METRO WINE PAIRING', 'ACCORDS METRO') }}</div><h2 id="wine-title">{{ tr('Three wines for your dinner', 'Trois vins pour votre repas') }}</h2><p>{{ tr('Matched to your selected protein and portion size.', 'Choisis selon la protéine et la taille des portions.') }}</p></div><span class="wine-count">{{ recommendedWines().length }} {{ tr('matches', 'accords') }}</span></div>
+            <div class="wine-heading"><div><div class="eyebrow">{{ tr('METRO WINE PAIRING', 'ACCORDS METRO') }}</div><h2 id="wine-title">{{ tr('Three wines for your dinner', 'Trois vins pour votre repas') }}</h2><p>{{ tr('Matched to your selected protein and preferred wine style.', 'Selon la protéine choisie et le style de vin préféré.') }}</p></div><label class="wine-style-select">{{ tr('Wine style', 'Style de vin') }}<select [ngModel]="wineProfileId()" (ngModelChange)="wineProfileId.set($event)"><option value="auto">{{ tr('Suggest for this protein', 'Suggestion selon cette protéine') }}</option><option *ngFor="let profile of wineProfiles" [value]="profile.id">{{ profile.name }}</option></select></label></div>
+            <p class="wine-profile-description" *ngIf="selectedWineProfile() as profile">{{ profile.profile }} {{ tr('Pairing:', 'Accords :') }} {{ profile.name }}.</p>
+            <p class="wine-no-match" *ngIf="!recommendedWines().length">{{ tr('This style is not recommended for the selected protein. Choose another style or let the protein guide the suggestions.', 'Ce style est déconseillé avec la protéine choisie. Choisissez un autre style ou laissez la protéine guider les suggestions.') }}</p>
             <div class="wine-list"><article class="wine-card" *ngFor="let wine of recommendedWines(); let i = index"><span class="wine-rank">0{{ i + 1 }}</span><div class="wine-info"><strong>{{ wine.brand }} {{ wine.name }}</strong><span>{{ wineTypeLabel(wine.category) }} · {{ wine.sizeMl }} mL · {{ wine.grapes }}</span></div><div class="wine-price"><strong>{{ wine.price === null ? tr('Price unavailable', 'Prix indisponible') : formatPrice(wine.price) }}</strong><span>{{ tr('per bottle', 'par bouteille') }}</span></div><a [href]="wine.sourceUrl" target="_blank" rel="noopener">{{ tr('Metro listing', 'Fiche Metro') }} ↗</a></article></div>
             <p class="wine-estimate" *ngIf="recommendedWines().length">{{ tr('For', 'Pour') }} {{ dinnerPeople() }} {{ tr('guests', 'personnes') }} · {{ wineBottles() }} {{ tr('bottle(s) estimated', 'bouteille(s) estimée(s)') }} ({{ tr('about', 'environ') }} 150 mL/{{ tr('person', 'personne') }})<span *ngIf="wineEstimatedCost() !== null"> · {{ tr('Wine total', 'Total du vin') }}: {{ formatPrice(wineEstimatedCost()!) }}</span></p>
             <small class="wine-source-note">{{ tr('Catalog snapshot from Metro category listings; price and availability vary by store. Pairings are general suggestions.', 'Instantané des catégories Metro; prix et disponibilité varient selon le magasin. Les accords sont des suggestions générales.') }}</small>
@@ -89,6 +94,9 @@ export class AppComponent {
   readonly selected = signal<string[]>([]);
   readonly proteinItems = computed(() => this.items().filter(item => item.category === 'Meat' || item.category === 'Seafood' || item.category === 'Meat & seafood'));
   readonly dinnerItemId = signal(metroDollardFlyer.items.find(item => item.category === 'Meat' || item.category === 'Seafood')?.id ?? '');
+  readonly wineProfiles = wineProfiles;
+  readonly wineProfileId = signal('auto');
+  readonly selectedWineProfile = computed(() => wineProfiles.find(profile => profile.id === this.wineProfileId()) ?? null);
   readonly dinnerPeople = signal(4);
   readonly portionSize = signal<'small' | 'medium' | 'large'>('medium');
   readonly portionGrams = computed(() => portionSizeConfig[this.portionSize()]);
@@ -101,14 +109,25 @@ export class AppComponent {
     const item = this.items().find(candidate => candidate.id === this.dinnerItemId());
     if (!item) return [];
     const text = item.item.toLowerCase();
-    const protein = /salmon|trout|tuna|cod|tilapia|halibut|fish|sole|haddock|mackerel|sardine/.test(text) ? 'fish'
-      : /shrimp|prawn|lobster|crab|scallop|clam|mussel|oyster|seafood|squid|calamari/.test(text) ? 'seafood'
-      : /chicken|turkey|duck|poultry/.test(text) ? 'poultry'
-      : /pork|ham|bacon/.test(text) ? 'pork'
-      : /lamb/.test(text) ? 'lamb'
-      : /beef|steak|veal|meat/.test(text) ? 'beef' : 'poultry';
-    return wineCatalog.filter(wine => wine.pairings.includes(protein))
-      .sort((a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER)).slice(0, 3);
+    const tags = /salmon|trout/.test(text) ? ['fish', 'salmon', 'trout']
+      : /cod|tilapia|halibut|sole|haddock|white fish/.test(text) ? ['fish', 'white-fish', 'cod']
+      : /shrimp|prawn/.test(text) ? ['seafood', 'shrimp']
+      : /scallop/.test(text) ? ['seafood', 'scallops']
+      : /lobster/.test(text) ? ['seafood', 'lobster']
+      : /oyster/.test(text) ? ['seafood', 'oysters']
+      : /clam/.test(text) ? ['seafood', 'clams']
+      : /mussel/.test(text) ? ['seafood', 'mussels']
+      : /squid|calamari|octopus/.test(text) ? ['seafood', 'octopus']
+      : /chicken|turkey|duck|poultry/.test(text) ? ['poultry', 'turkey']
+      : /pork|ham|bacon/.test(text) ? ['pork']
+      : /lamb/.test(text) ? ['lamb']
+      : /beef|steak|veal|meat/.test(text) ? ['beef', 'steak'] : ['poultry'];
+    const protein = tags.includes('seafood') ? 'seafood' : tags.includes('fish') ? 'fish' : tags[0];
+    const profile = this.selectedWineProfile();
+    if (profile && (!profile.proteins.some(tag => tags.includes(tag)) || profile.avoid?.some(tag => tags.includes(tag)))) return [];
+    const candidates = wineCatalog.filter(wine => wine.pairings.includes(protein) && (!profile || profile.wineCategories.includes(wine.category)));
+    const sorted = candidates.sort((a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER));
+    return sorted.slice(0, 3).length === 3 ? sorted.slice(0, 3) : candidates.length ? candidates.slice(0, 3) : wineCatalog.filter(wine => !profile || profile.wineCategories.includes(wine.category)).slice(0, 3);
   });
   readonly wineBottles = computed(() => Math.max(1, Math.ceil(this.dinnerPeople() * 150 / 750)));
   readonly wineEstimatedCost = computed(() => this.recommendedWines().length === 3 && this.recommendedWines().every(w => w.price !== null)
