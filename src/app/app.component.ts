@@ -4,9 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { FlyerItem, metroDollardFlyer } from './metro-dollard-flyer';
 import { frenchItemNames } from './item-translations';
 import portionSizeConfig from './dinner-portion-sizes.json';
+import redWines from './wines-red.json';
+import whiteWines from './wines-white.json';
+import roseWines from './wines-rose.json';
+import sparklingWines from './wines-sparkling.json';
 
 type ItemDraft = Omit<FlyerItem, 'id'>;
 type DinnerCostEstimate = { total: number; quantity: number; unit: string; unitPrice: number; priceUnit: string };
+type Wine = { id: string; name: string; brand: string; category: string; grapes: string; sizeMl: number; price: number | null; regularPrice: number | null; pairings: string[]; sourceUrl: string };
+const wineCatalog = [...redWines, ...whiteWines, ...roseWines, ...sparklingWines] as Wine[];
 
 @Component({
   selector: 'app-root', standalone: true, imports: [CommonModule, FormsModule],
@@ -43,6 +49,12 @@ type DinnerCostEstimate = { total: number; quantity: number; unit: string; unitP
               </div>
             </div>
             <p class="dinner-hint">{{ tr("Portion amounts use raw weight; adjust as needed.", "Les portions sont en poids cru; ajustez au besoin.") }}</p>
+          </section>
+          <section class="wine-panel" aria-labelledby="wine-title">
+            <div class="wine-heading"><div><div class="eyebrow">{{ tr('METRO WINE PAIRING', 'ACCORDS METRO') }}</div><h2 id="wine-title">{{ tr('Three wines for your dinner', 'Trois vins pour votre repas') }}</h2><p>{{ tr('Matched to your selected protein and portion size.', 'Choisis selon la protéine et la taille des portions.') }}</p></div><span class="wine-count">{{ recommendedWines().length }} {{ tr('matches', 'accords') }}</span></div>
+            <div class="wine-list"><article class="wine-card" *ngFor="let wine of recommendedWines(); let i = index"><span class="wine-rank">0{{ i + 1 }}</span><div class="wine-info"><strong>{{ wine.brand }} {{ wine.name }}</strong><span>{{ wineTypeLabel(wine.category) }} · {{ wine.sizeMl }} mL · {{ wine.grapes }}</span></div><div class="wine-price"><strong>{{ wine.price === null ? tr('Price unavailable', 'Prix indisponible') : formatPrice(wine.price) }}</strong><span>{{ tr('per bottle', 'par bouteille') }}</span></div><a [href]="wine.sourceUrl" target="_blank" rel="noopener">{{ tr('Metro listing', 'Fiche Metro') }} ↗</a></article></div>
+            <p class="wine-estimate" *ngIf="recommendedWines().length">{{ tr('For', 'Pour') }} {{ dinnerPeople() }} {{ tr('guests', 'personnes') }} · {{ wineBottles() }} {{ tr('bottle(s) estimated', 'bouteille(s) estimée(s)') }} ({{ tr('about', 'environ') }} 150 mL/{{ tr('person', 'personne') }})<span *ngIf="wineEstimatedCost() !== null"> · {{ tr('Wine total', 'Total du vin') }}: {{ formatPrice(wineEstimatedCost()!) }}</span></p>
+            <small class="wine-source-note">{{ tr('Catalog snapshot from Metro category listings; price and availability vary by store. Pairings are general suggestions.', 'Instantané des catégories Metro; prix et disponibilité varient selon le magasin. Les accords sont des suggestions générales.') }}</small>
           </section>
           <div class="stat-row"><div class="stat-card"><div class="stat-label">{{ tr("ITEMS IN YOUR GRID", "ARTICLES DANS LA GRILLE") }} <span class="stat-icon peach">▦</span></div><div class="stat-value">{{ items().length }}<small>{{ tr("items", "articles") }}</small></div><div class="stat-foot">{{ tr("Across", "Dans") }} {{ categories().length }} {{ tr("categories", "catégories") }}</div></div><div class="stat-card"><div class="stat-label">{{ tr("AVERAGE DEAL", "ÉCONOMIE MOYENNE") }} <span class="stat-icon mint">↘</span></div><div class="stat-value">{{ savingsPercent() }}<small>{{ tr("% off", "de rabais") }}</small></div><div class="stat-foot">{{ tr("Compared with regular price", "par rapport au prix régulier") }}</div></div><div class="stat-card flyer-card"><div class="stat-label">{{ tr("THIS WEEK AT METRO", "CETTE SEMAINE CHEZ METRO") }} <span class="live-dot"></span></div><div class="flyer-info"><div class="calendar-icon"><b>{{ today | date:'d' }}</b><small>{{ language() === 'fr' ? frenchMonth : (today | date:'MMM') }}</small></div><div><strong>{{ tr("Fresh deals, every week", "De nouvelles offres chaque semaine") }}</strong><span>{{ tr("Check your local store for dates", "Vérifiez les dates auprès de votre magasin") }}</span></div></div><a href="https://www.metro.ca/circulaire" target="_blank" rel="noopener">{{ tr("View current flyer", "Voir le circulaire actuel") }} ↗</a></div></div>
 
@@ -85,6 +97,22 @@ export class AppComponent {
   readonly dinnerTotalPounds = computed(() => this.dinnerTotalGrams() / 453.59237);
   readonly dinnerTotalKilograms = computed(() => this.dinnerTotalGrams() / 1000);
   readonly dinnerTotalOunces = computed(() => this.dinnerTotalGrams() / 28.349523125);
+  readonly recommendedWines = computed(() => {
+    const item = this.items().find(candidate => candidate.id === this.dinnerItemId());
+    if (!item) return [];
+    const text = item.item.toLowerCase();
+    const protein = /salmon|trout|tuna|cod|tilapia|halibut|fish|sole|haddock|mackerel|sardine/.test(text) ? 'fish'
+      : /shrimp|prawn|lobster|crab|scallop|clam|mussel|oyster|seafood|squid|calamari/.test(text) ? 'seafood'
+      : /chicken|turkey|duck|poultry/.test(text) ? 'poultry'
+      : /pork|ham|bacon/.test(text) ? 'pork'
+      : /lamb/.test(text) ? 'lamb'
+      : /beef|steak|veal|meat/.test(text) ? 'beef' : 'poultry';
+    return wineCatalog.filter(wine => wine.pairings.includes(protein))
+      .sort((a, b) => (a.price ?? Number.MAX_SAFE_INTEGER) - (b.price ?? Number.MAX_SAFE_INTEGER)).slice(0, 3);
+  });
+  readonly wineBottles = computed(() => Math.max(1, Math.ceil(this.dinnerPeople() * 150 / 750)));
+  readonly wineEstimatedCost = computed(() => this.recommendedWines().length === 3 && this.recommendedWines().every(w => w.price !== null)
+    ? this.wineBottles() * this.recommendedWines().reduce((sum, wine) => sum + wine.price!, 0) / 3 : null);
   readonly dinnerCostEstimate = computed<DinnerCostEstimate | null>(() => {
     const item = this.items().find(candidate => candidate.id === this.dinnerItemId());
     if (!item || item.price === null) return null;
@@ -146,6 +174,7 @@ export class AppComponent {
   setPortionSize(value: string): void {
     if (value === 'small' || value === 'medium' || value === 'large') this.portionSize.set(value);
   }
+  wineTypeLabel(category: string): string { return ({ red: this.tr('Red', 'Rouge'), white: this.tr('White', 'Blanc'), rose: 'Rosé', sparkling: this.tr('Sparkling', 'Mousseux') } as Record<string, string>)[category] ?? category; }
   private packageWeightGrams(size: string): number | null {
     const weights = [...size.matchAll(/(\d+(?:\.\d+)?)\s*(kg|g|lb)\b/gi)].map(match => {
       const amount = Number(match[1]);

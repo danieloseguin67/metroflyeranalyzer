@@ -1,0 +1,5 @@
+[
+  {"id":"sparkling-xoxo","name":"Vin blanc mousseux, Pinot Grigio-Chardonnay","brand":"XOXO","category":"sparkling","grapes":"Pinot Grigio, Chardonnay","sizeMl":750,"price":11.49,"regularPrice":null,"pairings":["fish","seafood","poultry","pork"],"sourceUrl":"https://www.metro.ca/epicerie-en-ligne/allees/bieres-et-vins/vins-cocktails-et-coolers/vins-mousseux"},
+  {"id":"sparkling-pelee","name":"Vin mousseux du Canada","brand":"Pelee Island","category":"sparkling","grapes":"Sparkling blend","sizeMl":750,"price":14.99,"regularPrice":null,"pairings":["fish","seafood","poultry","pork"],"sourceUrl":"https://www.metro.ca/epicerie-en-ligne/allees/bieres-et-vins/vins-cocktails-et-coolers/vins-mousseux"},
+  {"id":"sparkling-thirty-bench","name":"Vin mousseux blanc","brand":"Thirty Bench","category":"sparkling","grapes":"White blend","sizeMl":750,"price":17.49,"regularPrice":null,"pairings":["fish","seafood","poultry","pork"],"sourceUrl":"https://www.metro.ca/epicerie-en-ligne/allees/bieres-et-vins/vins-cocktails-et-coolers/vins-mousseux"}
+]

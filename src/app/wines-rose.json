@@ -1,0 +1,6 @@
+[
+  {"id":"rose-laylow","name":"Vin rosé du Canada","brand":"Laylow","category":"rose","grapes":"Rosé blend","sizeMl":750,"price":9.49,"regularPrice":11.49,"pairings":["poultry","pork","salmon","seafood"],"sourceUrl":"https://www.metro.ca/epicerie-en-ligne/allees/bieres-et-vins/vins-cocktails-et-coolers/vins-roses"},
+  {"id":"rose-peller-estates","name":"Vin rosé du Canada","brand":"Peller Estates","category":"rose","grapes":"Rosé blend","sizeMl":750,"price":14.99,"regularPrice":null,"pairings":["poultry","pork","salmon","seafood"],"sourceUrl":"https://www.metro.ca/epicerie-en-ligne/allees/bieres-et-vins/vins-cocktails-et-coolers/vins-roses"},
+  {"id":"rose-henry","name":"Vin rosé du Canada","brand":"Henry of Pelham","category":"rose","grapes":"Rosé blend","sizeMl":750,"price":15.49,"regularPrice":null,"pairings":["poultry","pork","salmon","seafood"],"sourceUrl":"https://www.metro.ca/epicerie-en-ligne/allees/bieres-et-vins/vins-cocktails-et-coolers/vins-roses"},
+  {"id":"rose-trius","name":"Vin rosé du Canada","brand":"Trius","category":"rose","grapes":"Rosé blend","sizeMl":750,"price":23.49,"regularPrice":26.49,"pairings":["poultry","pork","salmon","seafood"],"sourceUrl":"https://www.metro.ca/epicerie-en-ligne/allees/bieres-et-vins/vins-cocktails-et-coolers/vins-roses"}
+]
