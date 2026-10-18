@@ -6,6 +6,7 @@ import { frenchItemNames } from './item-translations';
 import portionSizeConfig from './dinner-portion-sizes.json';
 
 type ItemDraft = Omit<FlyerItem, 'id'>;
+type DinnerCostEstimate = { total: number; quantity: number; unit: string; unitPrice: number; priceUnit: string };
 
 @Component({
   selector: 'app-root', standalone: true, imports: [CommonModule, FormsModule],
@@ -35,7 +36,11 @@ type ItemDraft = Omit<FlyerItem, 'id'>;
               <label>{{ tr('Meat or fish', 'Viande ou poisson') }}<select [ngModel]="dinnerItemId()" (ngModelChange)="dinnerItemId.set($event)"><option *ngFor="let item of proteinItems()" [value]="item.id">{{ displayItemName(item) }}</option></select></label>
               <label>{{ tr('People', 'Personnes') }}<input type="number" min="1" max="50" [ngModel]="dinnerPeople()" (ngModelChange)="dinnerPeople.set(numberInRange($event, 1, 50, true))"></label>
               <label>{{ tr('Portion size', 'Taille de la portion') }}<select [ngModel]="portionSize()" (ngModelChange)="setPortionSize($event)"><option value="small">{{ tr('Small', 'Petite') }}</option><option value="medium">{{ tr('Medium', 'Moyenne') }}</option><option value="large">{{ tr('Large', 'Grande') }}</option></select></label>
-              <div class="dinner-result"><small>{{ tr('ESTIMATED AMOUNT TO BUY', 'QUANTITÉ ESTIMÉE À ACHETER') }}</small><strong *ngIf="measureSystem() === 'metric'">{{ dinnerTotalGrams() | number:'1.0-0' }} g</strong><strong *ngIf="measureSystem() === 'imperial'">{{ dinnerTotalOunces() | number:'1.1-1' }} oz</strong><span *ngIf="measureSystem() === 'metric'">{{ dinnerTotalKilograms() | number:'1.2-2' }} kg</span><span *ngIf="measureSystem() === 'imperial'">{{ dinnerTotalPounds() | number:'1.2-2' }} lb</span></div>
+              <div class="dinner-result">
+                <div class="dinner-quantity"><small>{{ tr('ESTIMATED AMOUNT TO BUY', 'QUANTITÉ ESTIMÉE À ACHETER') }}</small><strong *ngIf="measureSystem() === 'metric'">{{ dinnerTotalGrams() | number:'1.0-0' }} g</strong><strong *ngIf="measureSystem() === 'imperial'">{{ dinnerTotalOunces() | number:'1.1-1' }} oz</strong><span *ngIf="measureSystem() === 'metric'">{{ dinnerTotalKilograms() | number:'1.2-2' }} kg</span><span *ngIf="measureSystem() === 'imperial'">{{ dinnerTotalPounds() | number:'1.2-2' }} lb</span></div>
+                <div class="dinner-cost" *ngIf="dinnerCostEstimate() as cost"><small>{{ tr('ESTIMATED COST', 'COÛT ESTIMÉ') }}</small><strong>{{ formatPrice(cost.total) }}</strong><span>{{ cost.quantity | number:'1.0-2' }} {{ cost.unit }} × {{ formatPrice(cost.unitPrice) }}/{{ cost.priceUnit }}</span></div>
+                <div class="dinner-cost unavailable" *ngIf="!dinnerCostEstimate()"><small>{{ tr('ESTIMATED COST', 'COÛT ESTIMÉ') }}</small><strong>—</strong><span>{{ tr('Price or package weight unavailable', 'Prix ou poids du paquet indisponible') }}</span></div>
+              </div>
             </div>
             <p class="dinner-hint">{{ tr("Portion amounts use raw weight; adjust as needed.", "Les portions sont en poids cru; ajustez au besoin.") }}</p>
           </section>
@@ -70,8 +75,8 @@ export class AppComponent {
   readonly categoryMenu = signal(false);
   readonly toast = signal('');
   readonly selected = signal<string[]>([]);
-  readonly proteinItems = computed(() => this.items().filter(item => item.category === 'Meat & seafood'));
-  readonly dinnerItemId = signal(metroDollardFlyer.items.find(item => item.category === 'Meat & seafood')?.id ?? '');
+  readonly proteinItems = computed(() => this.items().filter(item => item.category === 'Meat' || item.category === 'Seafood' || item.category === 'Meat & seafood'));
+  readonly dinnerItemId = signal(metroDollardFlyer.items.find(item => item.category === 'Meat' || item.category === 'Seafood')?.id ?? '');
   readonly dinnerPeople = signal(4);
   readonly portionSize = signal<'small' | 'medium' | 'large'>('medium');
   readonly portionGrams = computed(() => portionSizeConfig[this.portionSize()]);
@@ -80,6 +85,21 @@ export class AppComponent {
   readonly dinnerTotalPounds = computed(() => this.dinnerTotalGrams() / 453.59237);
   readonly dinnerTotalKilograms = computed(() => this.dinnerTotalGrams() / 1000);
   readonly dinnerTotalOunces = computed(() => this.dinnerTotalGrams() / 28.349523125);
+  readonly dinnerCostEstimate = computed<DinnerCostEstimate | null>(() => {
+    const item = this.items().find(candidate => candidate.id === this.dinnerItemId());
+    if (!item || item.price === null) return null;
+    if (item.unit === 'lb' || item.unit === '100 g') {
+      const quantity = this.measureSystem() === 'metric' ? this.dinnerTotalGrams() / 1000 : this.dinnerTotalGrams() / 453.59237;
+      const priceUnit = this.displayPriceUnit(item.unit);
+      const unitPrice = this.displayPrice(item.price, item.unit)!;
+      return { total: quantity * unitPrice, quantity, unit: priceUnit, unitPrice, priceUnit };
+    }
+    const packageGrams = this.packageWeightGrams(item.size);
+    if (packageGrams === null) return null;
+    const quantity = Math.ceil(this.dinnerTotalGrams() / packageGrams);
+    const unit = this.language() === 'fr' ? this.frenchUnit(item.unit) : item.unit;
+    return { total: quantity * item.price, quantity, unit, unitPrice: item.price, priceUnit: unit };
+  });
   readonly filteredItems = computed(() => {
     const query = this.search().trim().toLowerCase(); const category = this.selectedCategory();
     return [...this.items()].filter(x => (!category || x.category === category) && (!query || x.category.toLowerCase().includes(query) || this.frenchCategory(x.category).toLowerCase().includes(query) || x.item.toLowerCase().includes(query) || this.displayItemName(x).toLowerCase().includes(query))).sort((a,b) => a.category.localeCompare(b.category) || this.displayItemName(a).localeCompare(this.displayItemName(b)));
@@ -126,6 +146,14 @@ export class AppComponent {
   setPortionSize(value: string): void {
     if (value === 'small' || value === 'medium' || value === 'large') this.portionSize.set(value);
   }
+  private packageWeightGrams(size: string): number | null {
+    const weights = [...size.matchAll(/(\d+(?:\.\d+)?)\s*(kg|g|lb)\b/gi)].map(match => {
+      const amount = Number(match[1]);
+      const unit = match[2].toLowerCase();
+      return unit === 'kg' ? amount * 1000 : unit === 'lb' ? amount * 453.59237 : amount;
+    }).filter(weight => weight > 0);
+    return weights.length ? Math.min(...weights) : null;
+  }
   displaySize(size: string): string {
     if (this.measureSystem() === 'imperial') {
       return size
@@ -152,8 +180,8 @@ export class AppComponent {
   }
   emptyDraft(): ItemDraft { return { category: 'Produce', item: '', size: '', price: null, unit: 'each', regularPrice: null, note: '' }; }
   discount(item: FlyerItem): number | null { return item.price !== null && item.regularPrice !== null && item.regularPrice > item.price ? Math.round((1 - item.price / item.regularPrice) * 100) : null; }
-  iconFor(category: string): string { return ({ 'Produce':'✳', 'Meat & seafood':'◒', 'Dairy & eggs':'◉', 'Pantry':'▤', 'Bakery':'♨', 'Frozen':'❄' } as Record<string,string>)[category] || '✳'; }
-  frenchCategory(category: string): string { return ({ 'Produce':'Fruits et légumes', 'Meat & seafood':'Viandes et fruits de mer', 'Dairy & eggs':'Produits laitiers et œufs', 'Pantry':'Épicerie', 'Bakery':'Boulangerie', 'Frozen':'Surgelés' } as Record<string,string>)[category] ?? category; }
+  iconFor(category: string): string { return ({ 'Produce':'✳', 'Meat':'◒', 'Seafood':'🐟', 'Meat & seafood':'◒', 'Dairy & eggs':'◉', 'Pantry':'▤', 'Bakery':'♨', 'Frozen':'❄' } as Record<string,string>)[category] || '✳'; }
+  frenchCategory(category: string): string { return ({ 'Produce':'Fruits et légumes', 'Meat':'Viande', 'Seafood':'Poisson et fruits de mer', 'Meat & seafood':'Viande et fruits de mer', 'Dairy & eggs':'Produits laitiers et œufs', 'Pantry':'Épicerie', 'Bakery':'Boulangerie', 'Frozen':'Surgelés' } as Record<string,string>)[category] ?? category; }
   frenchUnit(unit: string): string { return ({ 'each':'unité', 'pack':'paquet', 'bag':'sac', 'box':'boîte' } as Record<string,string>)[unit] ?? unit; }
   categoryClass(category: string): string { return category.toLowerCase().replace(/[^a-z]+/g,'-').replace(/(^-|-$)/g,''); }
   isChecked(id: string): boolean { return this.selected().includes(id); }
@@ -178,7 +206,7 @@ export class AppComponent {
   }
   newList(): void { this.listName = 'Metro weekly flyer'; this.items.set([]); this.page.set(1); this.notify('Started a fresh flyer grid'); }
   downloadJson(): void { const payload = { app: 'MetroGrid', version: 1, listName: this.listName, exportedAt: new Date().toISOString(), items: this.items() }; const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `metro-flyer-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); this.notify('Flyer grid saved as JSON'); }
-  importJson(event: Event): void { const input = event.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const parsed: unknown = JSON.parse(String(reader.result)); const raw = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' && 'items' in parsed ? (parsed as {items: unknown}).items : null); if (!Array.isArray(raw) || !raw.every(x => x && typeof x === 'object' && typeof (x as Record<string,unknown>)['item'] === 'string' && typeof (x as Record<string,unknown>)['category'] === 'string')) throw new Error('Invalid'); const imported = raw.map((x,i) => { const value = x as Record<string,unknown>; return { id: typeof value['id'] === 'string' ? value['id'] : `import-${Date.now()}-${i}`, category: String(value['category']), item: String(value['item']), size: String(value['size'] ?? ''), price: typeof value['price'] === 'number' ? value['price'] : null, unit: String(value['unit'] ?? 'each'), regularPrice: typeof value['regularPrice'] === 'number' ? value['regularPrice'] : null, note: String(value['note'] ?? '') }; }); this.items.set(imported); if (!Array.isArray(parsed) && parsed && typeof parsed === 'object' && 'listName' in parsed && typeof (parsed as {listName?:unknown}).listName === 'string') this.listName = (parsed as {listName:string}).listName; this.search.set(''); this.selectedCategory.set(''); this.page.set(1); this.selected.set([]); this.notify(`Imported ${imported.length} flyer items`); } catch { this.notify('Could not read this JSON. Choose a MetroGrid export.'); } input.value = ''; }; reader.readAsText(file); }
+  importJson(event: Event): void { const input = event.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const parsed: unknown = JSON.parse(String(reader.result)); const raw = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' && 'items' in parsed ? (parsed as {items: unknown}).items : null); if (!Array.isArray(raw) || !raw.every(x => x && typeof x === 'object' && typeof (x as Record<string,unknown>)['item'] === 'string' && typeof (x as Record<string,unknown>)['category'] === 'string')) throw new Error('Invalid'); const imported = raw.map((x,i) => { const value = x as Record<string,unknown>; return { id: typeof value['id'] === 'string' ? value['id'] : `import-${Date.now()}-${i}`, category: String(value['category']) === 'Meat & seafood' ? (String(value['id'] ?? '').startsWith('dollard-seafood-') ? 'Seafood' : 'Meat') : String(value['category']), item: String(value['item']), size: String(value['size'] ?? ''), price: typeof value['price'] === 'number' ? value['price'] : null, unit: String(value['unit'] ?? 'each'), regularPrice: typeof value['regularPrice'] === 'number' ? value['regularPrice'] : null, note: String(value['note'] ?? '') }; }); this.items.set(imported); if (!Array.isArray(parsed) && parsed && typeof parsed === 'object' && 'listName' in parsed && typeof (parsed as {listName?:unknown}).listName === 'string') this.listName = (parsed as {listName:string}).listName; this.search.set(''); this.selectedCategory.set(''); this.page.set(1); this.selected.set([]); this.notify(`Imported ${imported.length} flyer items`); } catch { this.notify('Could not read this JSON. Choose a MetroGrid export.'); } input.value = ''; }; reader.readAsText(file); }
   private notify(message: string): void {
     const frenchMessages: Record<string, string> = {
       'Item added to your flyer grid': 'Article ajouté à votre grille',

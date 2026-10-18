@@ -171,3 +171,7 @@
 
 
 .measure-switch{display:inline-flex;align-items:center;gap:2px;border:1px solid #e6e8e1;border-radius:6px;padding:2px;background:#fff}.measure-switch button{min-width:55px;height:25px;padding:0 5px;border:0;border-radius:4px;background:transparent;color:#74796f;font:600 8px 'DM Mono',monospace}.measure-switch button.active{background:#edf3eb;color:#3d6545}@media(max-width:760px){.top-actions{gap:7px}.measure-switch button{min-width:47px;padding:0 3px}}@media(max-width:540px){.week-chip,.icon-button,.avatar.small{display:none}.top-actions{gap:6px}.measure-switch button{min-width:43px;font-size:7px}}
+
+.dinner-result{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:9px}.dinner-quantity,.dinner-cost{min-width:0;display:grid;grid-template-columns:1fr auto;align-items:center;column-gap:5px}.dinner-quantity small,.dinner-cost small{grid-column:1/-1}.dinner-quantity strong,.dinner-cost strong{font:700 16px Manrope}.dinner-cost{border-left:1px solid #dce8da;padding-left:9px}.dinner-cost span{grid-column:1/-1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:8px}.dinner-cost.unavailable strong{font-size:14px}@media(max-width:760px){.dinner-result{grid-column:1/-1}}@media(max-width:420px){.dinner-result{grid-column:auto}}
+
+.cat-meat{background:#fbefeb;color:#b97160}.cat-seafood{background:#edf3f4;color:#5c8587}
