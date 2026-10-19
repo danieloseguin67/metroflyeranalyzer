@@ -92,7 +92,9 @@ export class AppComponent {
   readonly categoryMenu = signal(false);
   readonly toast = signal('');
   readonly selected = signal<string[]>([]);
-  readonly proteinItems = computed(() => this.items().filter(item => item.category === 'Meat' || item.category === 'Seafood' || item.category === 'Meat & seafood'));
+  readonly proteinItems = computed(() => this.items()
+    .filter(item => item.category === 'Meat' || item.category === 'Seafood' || item.category === 'Meat & seafood')
+    .sort((a, b) => this.displayItemName(a).localeCompare(this.displayItemName(b), this.language())));
   readonly dinnerItemId = signal(metroDollardFlyer.items.find(item => item.category === 'Meat' || item.category === 'Seafood')?.id ?? '');
   readonly wineProfiles = wineProfiles;
   readonly wineProfileId = signal('auto');
