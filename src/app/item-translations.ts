@@ -32,7 +32,7 @@ export const frenchItemNames: Record<string, string> = {
   'Roma sausages': 'Saucisses Roma',
   'Bella Vita Roma sausages': 'Saucisses Bella Vita Roma',
   'Shaker frozen beef patties': 'Galettes de bœuf surgelées Shaker',
-  'Shaker Wagyu beef dumplings': 'Raviolis au bœuf Wagyu Shaker',
+  'Shaker Wagyu beef dumplings': 'Dumplings boeuf wagyu surgelés Shaker',
   'Benny cooked pork back ribs': 'Côtes de dos de porc cuites Benny',
   'Nickels smoked meat': 'Viande fumée Nickels',
   'Nickels smoked meat topping': 'Garniture de viande fumée Nickels',

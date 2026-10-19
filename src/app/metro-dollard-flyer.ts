@@ -49,7 +49,7 @@ export const metroDollardFlyer = {
     { id: 'dollard-meat-21', category: 'Meat', item: 'Roma sausages', size: '375 g; assorted', price: 5.99, unit: 'pack', regularPrice: null, note: '' },
     { id: 'dollard-meat-22', category: 'Meat', item: 'Bella Vita Roma sausages', size: '375 g; assorted', price: 6.49, unit: 'pack', regularPrice: null, note: '' },
     { id: 'dollard-meat-23', category: 'Meat', item: 'Shaker frozen beef patties', size: '550 g', price: 16.99, unit: 'pack', regularPrice: null, note: '' },
-    { id: 'dollard-meat-24', category: 'Meat', item: 'Shaker Wagyu beef dumplings', size: '315 g; assorted', price: 9.99, unit: 'pack', regularPrice: null, note: '' },
+    { id: 'dollard-meat-24', category: 'Meat', item: 'Shaker Wagyu beef dumplings', size: '317 g', price: 9.99, unit: 'pack', regularPrice: null, note: '' },
     { id: 'dollard-meat-25', category: 'Meat', item: 'Benny cooked pork back ribs', size: '595 g', price: 17.99, unit: 'pack', regularPrice: null, note: '' },
     { id: 'dollard-meat-26', category: 'Meat', item: 'Nickels smoked meat', size: '400 g', price: 15.99, unit: 'pack', regularPrice: null, note: '' },
     { id: 'dollard-meat-27', category: 'Meat', item: 'Nickels smoked meat topping', size: '400 g', price: 9.99, unit: 'pack', regularPrice: null, note: '' },
