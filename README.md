@@ -28,14 +28,15 @@ The build output is written to `dist/metro-flyer-grid/browser`.
 - Add items to the grid or remove existing items. You can set the item, category, size, price, unit, regular price, and notes when adding.
 - Switch the interface between English and French with the language control.
 - Export the current list as a JSON file. Import a previous MetroGrid JSON export to replace the current list.
-- Use **Refresh grid** to restore the included flyer snapshot and clear the current filters and edits.
+- Select a saved flyer date range, then use **Refresh grid** to restore that snapshot and clear the current filters and edits.
 - Open the linked Metro flyer to check the official listing and current availability.
+- The grid shows a Moi member price separately from the flyer price when the official flyer marks one. If no separate member price is listed, the Moi price matches the flyer price. Moi prices are only populated when verified in the flyer.
 
 Grid edits are held in the current browser session. Export a JSON copy if you want to keep changes for later.
 
 Dinner portion presets are configured in [`src/app/dinner-portion-sizes.json`](src/app/dinner-portion-sizes.json). Values are grams per person (raw weight) for `small`, `medium`, and `large`. Edit and commit this file to change the presets; the GitHub Pages workflow includes the updated values in its next build.
 
-The included flyer is a saved snapshot for October 15–21, 2026; refreshing the grid reloads that snapshot and does not fetch live flyer data.
+The date selector always offers the current and next Thursday–Wednesday periods. Saved snapshots currently cover October 15–21 and October 22–28, 2026. Refresh loads the selected period's matching saved flyer data; for a week without a snapshot, it opens the Metro store flyer page in a new tab and leaves the grid unchanged. This static GitHub Pages app does not fetch live flyer data. Additional weekly snapshots can be added to the `flyerSnapshots` list in `src/app/app.component.ts`.
 
 ## Deploy to GitHub Pages
 

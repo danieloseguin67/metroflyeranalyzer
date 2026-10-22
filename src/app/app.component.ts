@@ -2,6 +2,7 @@ import { Component, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FlyerItem, metroDollardFlyer } from './metro-dollard-flyer';
+import { metroDollardFlyer20261022 } from './metro-dollard-flyer-2026-10-22';
 import { frenchItemNames } from './item-translations';
 import portionSizeConfig from './dinner-portion-sizes.json';
 import redWines from './wines-red.json';
@@ -14,6 +15,8 @@ type ItemDraft = Omit<FlyerItem, 'id'>;
 type DinnerCostEstimate = { total: number; quantity: number; unit: string; unitPrice: number; priceUnit: string };
 type Wine = { id: string; name: string; brand: string; category: string; grapes: string; sizeMl: number; price: number | null; regularPrice: number | null; pairings: string[]; sourceUrl: string };
 type WineProfile = { id: string; name: string; profile: string; proteins: string[]; avoid?: string[]; wineCategories: string[] };
+type FlyerSnapshot = typeof metroDollardFlyer & { id: string };
+type FlyerRange = { id: string; start: Date; end: Date; period: 'current' | 'next'; snapshot: FlyerSnapshot | null };
 const wineCatalog = [...redWines, ...whiteWines, ...roseWines, ...sparklingWines] as Wine[];
 const wineProfiles = winePairingGuide.profiles as WineProfile[];
 
@@ -35,9 +38,16 @@ const wineProfiles = winePairingGuide.profiles as WineProfile[];
         <section class="content">
           <div class="heading-row"><div><div class="eyebrow"><span class="eyebrow-line"></span>{{ tr("METRO · WEEKLY DEALS", "METRO · OFFRES DE LA SEMAINE") }}</div><h1>{{ displayListName() }}</h1><p class="subtitle">{{ tr("Your flyer, neatly sorted. Keep the good stuff in sight.", "Votre circulaire bien organisé. Gardez les bonnes offres à portée de main.") }}</p></div><div class="heading-actions"><a class="button secondary" href="https://www.metro.ca/circulaire" target="_blank" rel="noopener"><span class="button-symbol">↗</span>{{ tr("Open Metro flyer", "Voir le circulaire Metro") }}</a><button class="button secondary" (click)="downloadCsv()"><span class="button-symbol">↓</span>{{ tr("Export CSV", "Exporter CSV") }}</button><button class="button primary" (click)="downloadJson()"><span class="button-symbol">↓</span>{{ tr("Export JSON", "Exporter JSON") }}</button></div></div>
 
-          <div class="refresh-strip"><span class="refresh-mark">↻</span><div><strong>{{ tr('Metro Plus Dollard · H8N 3G5', 'Metro Plus Dollard · H8N 3G5') }}</strong><small>{{ tr('Saved flyer snapshot · October 15–21, 2026', 'Circulaire enregistrée · 15–21 octobre 2026') }}</small></div><button class="button secondary" [title]="tr('Reloads the saved flyer snapshot; it does not fetch live Metro data.', 'Recharge la circulaire enregistrée; ne récupère pas les données en direct.')" (click)="refreshFlyer()"><span class="button-symbol">↻</span>{{ tr('Refresh grid', 'Actualiser la grille') }}</button></div>
+          <div class="refresh-strip"><span class="refresh-mark">↻</span><div class="refresh-store"><strong>{{ tr('Metro Plus Dollard · H8N 3G5', 'Metro Plus Dollard · H8N 3G5') }}</strong><small>{{ selectedFlyerRangeStatus() }}</small></div><label class="flyer-range-select">{{ tr('Flyer dates', 'Dates du circulaire') }}<select [ngModel]="selectedFlyerId()" (ngModelChange)="selectedFlyerId.set($event)"><option *ngFor="let range of flyerRanges()" [value]="range.id">{{ flyerRangeLabel(range) }}</option></select></label><button class="button secondary" [title]="tr('Reload saved data, or open Metro for a range without a saved snapshot.', 'Recharge les données enregistrées ou ouvre Metro si aucun instantané n’existe pour cette période.')" (click)="refreshFlyer()"><span class="button-symbol">↻</span>{{ tr('Refresh grid', 'Actualiser la grille') }}</button></div>
 
-          <div class="sample-notice"><span>✳</span><div><strong>Metro Plus Dollard · {{ tr(flyer.title, 'Circulaire') }}</strong><small>{{ flyer.address }} · {{ flyerPeriod() }}. {{ tr('Snapshot read from the official flyer; it does not auto-refresh. Check Metro for current availability.', 'Instantané relevé dans le circulaire officiel, sans mise à jour automatique. Vérifiez la disponibilité auprès de Metro.') }}</small></div><a [href]="flyer.url" target="_blank" rel="noopener">{{ tr("Open official flyer", "Voir le circulaire officiel") }} ↗</a></div>
+          <div class="sample-notice"><span>✳</span><div><strong>Metro Plus Dollard · {{ flyerPeriod() }}</strong><small *ngIf="selectedFlyer()">{{ selectedFlyer()!.address }} · {{ tr('Saved flyer data for this period; it does not auto-refresh.', 'Données enregistrées pour cette période; elles ne se mettent pas à jour automatiquement.') }}</small><small *ngIf="!selectedFlyer()">{{ tr('No saved data for this period. Refresh opens Metro in a new tab; the current grid stays unchanged.', 'Aucune donnée enregistrée pour cette période. Actualiser ouvre Metro dans un nouvel onglet; la grille reste inchangée.') }}</small></div><a [href]="officialFlyerUrl" target="_blank" rel="noopener">{{ tr("Open official flyer", "Voir le circulaire officiel") }} ↗</a></div>
+
+          <section class="weight-converter" aria-labelledby="weight-converter-title">
+            <div class="weight-converter-copy"><span class="weight-converter-icon">⇄</span><div><h2 id="weight-converter-title">{{ tr('Weight converter', 'Convertisseur de poids') }}</h2><p>{{ tr('Convert kilograms and pounds.', 'Convertissez les kilogrammes et les livres.') }}</p></div></div>
+            <label class="weight-converter-input">{{ tr('Amount', 'Quantité') }}<div class="weight-input-row"><input type="number" min="0" step="any" [ngModel]="weightInput()" (ngModelChange)="weightInput.set($event)"><select [ngModel]="weightInputUnit()" (ngModelChange)="weightInputUnit.set($event)"><option value="kg">kg</option><option value="lb">lb</option></select></div></label>
+            <span class="weight-equals">=</span>
+            <output class="weight-converted" aria-live="polite"><strong>{{ convertedWeight() === null ? '—' : (convertedWeight()! | number:'1.0-3') }}</strong><span>{{ weightInputUnit() === 'kg' ? 'lb' : 'kg' }}</span></output>
+          </section>
 
           <section class="dinner-calculator" aria-labelledby="dinner-title">
             <div class="dinner-intro"><span class="dinner-icon">♨</span><div><h2 id="dinner-title">{{ tr('Dinner quantity calculator', 'Calculateur de quantité pour le repas') }}</h2><p>{{ tr('Estimate how much meat or fish to buy for dinner.', 'Estimez la quantité de viande ou de poisson à acheter pour le repas.') }}</p></div></div>
@@ -65,9 +75,9 @@ const wineProfiles = winePairingGuide.profiles as WineProfile[];
 
           <div class="table-card">
             <div class="table-head"><div><h2>{{ tr("Flyer items", "Articles du circulaire") }} <span class="total-pill">{{ filteredItems().length }}</span></h2><p>{{ tr("Sorted by category, then item name", "Triés par catégorie, puis par nom") }}</p></div><div class="table-controls"><label class="search-box"><span>⌕</span><input [ngModel]="search()" (ngModelChange)="setSearch($event)" [placeholder]="tr('Search category or item…', 'Rechercher une catégorie ou un article…')" [attr.aria-label]="tr('Search category or item', 'Rechercher une catégorie ou un article')"><kbd>⌘ K</kbd></label><button class="filter-button" (click)="toggleCategoryMenu()">☷ <span>{{ selectedCategory() ? categoryLabel(selectedCategory()) : tr('All categories', 'Toutes les catégories') }}</span>⌄</button><div class="category-menu" *ngIf="categoryMenu()"><button (click)="setCategory('')">{{ tr("All categories", "Toutes les catégories") }}</button><button *ngFor="let category of categories()" (click)="setCategory(category)">{{ categoryLabel(category) }}</button></div><button class="button add-button" (click)="openAdd()"><span>+</span>{{ tr("Add item", "Ajouter") }}</button><button class="more-button" [title]="tr('More actions', 'Plus d’options')" (click)="downloadJson()">···</button></div></div>
-            <div class="table-scroll"><table><thead><tr><th class="check-col"><input type="checkbox" [checked]="allChecked()" (change)="toggleAll($event)" [attr.aria-label]="tr('Select all visible items', 'Sélectionner tous les articles visibles')"></th><th>{{ tr("ITEM", "ARTICLE") }} <span>↕</span></th><th>{{ tr("CATEGORY", "CATÉGORIE") }} <span>↕</span></th><th>{{ tr("SIZE / FORMAT", "FORMAT") }}</th><th>{{ tr("SALE PRICE", "PRIX EN SOLDE") }} <span>↕</span></th><th>{{ tr("REGULAR", "RÉGULIER") }}</th><th>{{ tr("DEAL", "OFFRE") }}</th><th></th></tr></thead><tbody>
-              <tr *ngFor="let item of pageItems(); let i = index" [class.selected]="isChecked(item.id)"><td><input type="checkbox" [checked]="isChecked(item.id)" (change)="toggleItem(item.id)" [attr.aria-label]="tr('Select ' + displayItemName(item), 'Sélectionner ' + displayItemName(item))"></td><td><div class="item-cell"><span class="item-thumb" [class]="'item-thumb thumb-' + (i % 6)">{{ iconFor(item.category) }}</span><span><strong>{{ displayItemName(item) }}</strong><small>{{ item.note || tr('Metro weekly flyer', 'Circulaire hebdomadaire Metro') }}</small></span></div></td><td><span class="category-tag" [class]="'category-tag cat-' + categoryClass(item.category)"><i></i>{{ categoryLabel(item.category) }}</span></td><td class="muted-cell">{{ displaySize(item.size) }}</td><td><strong class="sale-price">{{ formatPrice(displayPrice(item.price, item.unit)) }}<small> / {{ displayPriceUnit(item.unit) }}</small></strong></td><td class="regular-price">{{ formatPrice(displayPrice(item.regularPrice, item.unit)) }}</td><td><span class="deal-badge" *ngIf="discount(item) as deal">-{{ deal }}%</span><span class="no-deal" *ngIf="!discount(item)">—</span></td><td><button class="row-menu" [attr.aria-label]="tr('Delete ' + displayItemName(item), 'Supprimer ' + displayItemName(item))" [title]="tr('Delete item', 'Supprimer l’article')" (click)="remove(item.id)">×</button></td></tr>
-              <tr *ngIf="filteredItems().length === 0"><td colspan="8" class="empty-state"><span>⌕</span><strong>{{ tr("No items found", "Aucun article trouvé") }}</strong><small>{{ tr("Try another search or add an item to this flyer.", "Essayez une autre recherche ou ajoutez un article.") }}</small></td></tr>
+            <div class="table-scroll"><table><thead><tr><th class="check-col"><input type="checkbox" [checked]="allChecked()" (change)="toggleAll($event)" [attr.aria-label]="tr('Select all visible items', 'Sélectionner tous les articles visibles')"></th><th>{{ tr("ITEM", "ARTICLE") }} <span>↕</span></th><th>{{ tr("CATEGORY", "CATÉGORIE") }} <span>↕</span></th><th>{{ tr("SIZE / FORMAT", "FORMAT") }}</th><th>{{ tr("FLYER PRICE", "PRIX DU CIRCULAIRE") }} <span>↕</span></th><th>{{ tr("MOI PRICE", "PRIX MOI") }}</th><th>{{ tr("REGULAR", "RÉGULIER") }}</th><th>{{ tr("DEAL", "OFFRE") }}</th><th></th></tr></thead><tbody>
+              <tr *ngFor="let item of pageItems(); let i = index" [class.selected]="isChecked(item.id)"><td><input type="checkbox" [checked]="isChecked(item.id)" (change)="toggleItem(item.id)" [attr.aria-label]="tr('Select ' + displayItemName(item), 'Sélectionner ' + displayItemName(item))"></td><td><div class="item-cell"><span class="item-thumb" [class]="'item-thumb thumb-' + (i % 6)">{{ iconFor(item.category) }}</span><span><strong>{{ displayItemName(item) }}</strong><small>{{ item.note || tr('Metro weekly flyer', 'Circulaire hebdomadaire Metro') }}</small></span></div></td><td><span class="category-tag" [class]="'category-tag cat-' + categoryClass(item.category)"><i></i>{{ categoryLabel(item.category) }}</span></td><td class="muted-cell">{{ displaySize(item.size) }}</td><td><strong class="sale-price">{{ formatPrice(displayPrice(item.price, item.unit)) }}<small> / {{ displayPriceUnit(item.unit) }}</small></strong></td><td><strong class="sale-price">{{ formatPrice(displayPrice(moiPrice(item), item.unit)) }}<small> / {{ displayPriceUnit(item.unit) }}</small></strong><small class="price-source">{{ hasSeparateMoiPrice(item) ? tr('Metro&Moi member price', 'Prix membre Metro&Moi') : tr('Same as flyer price', 'Même prix que le circulaire') }}</small></td><td class="regular-price">{{ formatPrice(displayPrice(item.regularPrice, item.unit)) }}</td><td><span class="deal-badge" *ngIf="discount(item) as deal">-{{ deal }}%</span><span class="no-deal" *ngIf="!discount(item)">—</span></td><td><button class="row-menu" [attr.aria-label]="tr('Delete ' + displayItemName(item), 'Supprimer ' + displayItemName(item))" [title]="tr('Delete item', 'Supprimer l’article')" (click)="remove(item.id)">×</button></td></tr>
+              <tr *ngIf="filteredItems().length === 0"><td colspan="9" class="empty-state"><span>⌕</span><strong>{{ tr("No items found", "Aucun article trouvé") }}</strong><small>{{ tr("Try another search or add an item to this flyer.", "Essayez une autre recherche ou ajoutez un article.") }}</small></td></tr>
             </tbody></table></div>
             <div class="table-foot"><span>{{ tr("Showing", "Affichage") }} <b>{{ showingStart() }}–{{ showingEnd() }}</b> {{ tr('of', 'sur') }} <b>{{ filteredItems().length }}</b> {{ tr("items", "articles") }}</span><span class="foot-legend"><i></i>{{ tr("Deal price is lower than regular price", "Le prix en solde est inférieur au prix régulier") }}</span><div class="pagination" [attr.aria-label]="tr('Flyer item pages', 'Pages des articles du circulaire')"><button (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() === 1">{{ tr("Prior", "Précédent") }}</button><span>{{ tr('Page', 'Page') }} {{ currentPage() }} {{ tr('of', 'sur') }} {{ totalPages() }}</span><button (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() === totalPages()">{{ tr("Next", "Suivant") }}</button></div><button class="json-mini" (click)="fileInput.click()">{{ tr("↑ Import JSON", "Importer JSON") }}</button></div>
           </div>
@@ -85,7 +95,28 @@ const wineProfiles = winePairingGuide.profiles as WineProfile[];
 export class AppComponent {
   readonly today = new Date();
   readonly language = signal<'en' | 'fr'>('fr');
-  readonly flyer = metroDollardFlyer;
+  readonly flyerSnapshots: FlyerSnapshot[] = [
+    { ...metroDollardFlyer, id: '2026-10-15' },
+    { ...metroDollardFlyer20261022, id: '2026-10-22' },
+  ];
+  readonly officialFlyerUrl = 'https://www.metro.ca/en/find-a-grocery/170';
+  readonly flyerRanges = computed<FlyerRange[]>(() => {
+    const today = new Date(this.today.getFullYear(), this.today.getMonth(), this.today.getDate());
+    const sinceThursday = (today.getDay() - 4 + 7) % 7;
+    const currentThursday = new Date(today);
+    currentThursday.setDate(today.getDate() - sinceThursday);
+    return [0, 7].map((offset, index) => {
+      const start = new Date(currentThursday);
+      start.setDate(start.getDate() + offset);
+      const end = new Date(start);
+      end.setDate(end.getDate() + 6);
+      const id = this.dateKey(start);
+      return { id, start, end, period: index === 0 ? 'current' : 'next', snapshot: this.flyerSnapshots.find(snapshot => snapshot.id === id) ?? null };
+    });
+  });
+  readonly selectedFlyerId = signal(this.dateKey(this.weekThursday(this.today)));
+  readonly selectedFlyerRange = computed(() => this.flyerRanges().find(range => range.id === this.selectedFlyerId()) ?? this.flyerRanges()[0]);
+  readonly selectedFlyer = computed(() => this.selectedFlyerRange()?.snapshot ?? null);
   readonly items = signal<FlyerItem[]>(metroDollardFlyer.items);
   readonly search = signal('');
   readonly selectedCategory = signal('');
@@ -103,6 +134,13 @@ export class AppComponent {
   readonly portionSize = signal<'small' | 'medium' | 'large'>('medium');
   readonly portionGrams = computed(() => portionSizeConfig[this.portionSize()]);
   readonly measureSystem = signal<'metric' | 'imperial'>('metric');
+  readonly weightInput = signal<number | null>(1);
+  readonly weightInputUnit = signal<'kg' | 'lb'>('kg');
+  readonly convertedWeight = computed(() => {
+    const amount = this.weightInput();
+    if (amount === null || !Number.isFinite(amount) || amount < 0) return null;
+    return this.weightInputUnit() === 'kg' ? amount * 2.2046226218 : amount / 2.2046226218;
+  });
   readonly dinnerTotalGrams = computed(() => this.dinnerPeople() * this.portionGrams());
   readonly dinnerTotalPounds = computed(() => this.dinnerTotalGrams() / 453.59237);
   readonly dinnerTotalKilograms = computed(() => this.dinnerTotalGrams() / 1000);
@@ -165,7 +203,7 @@ export class AppComponent {
   readonly showingStart = computed(() => this.filteredItems().length === 0 ? 0 : (this.currentPage() - 1) * this.pageSize + 1);
   readonly showingEnd = computed(() => Math.min(this.currentPage() * this.pageSize, this.filteredItems().length));
   readonly categories = computed(() => [...new Set(this.items().map(x => x.category))].sort((a,b) => a.localeCompare(b)));
-  readonly savingsPercent = computed(() => { const valid = this.items().filter(x => x.price !== null && x.regularPrice !== null && x.regularPrice > 0); if (!valid.length) return 0; return Math.round(valid.reduce((n,x) => n + (1 - (x.price! / x.regularPrice!)) * 100, 0) / valid.length); });
+  readonly savingsPercent = computed(() => { const valid = this.items().filter(x => { const price = this.moiPrice(x); const referencePrice = x.regularPrice ?? (x.moiPrice != null ? x.price : null); return price !== null && referencePrice !== null && referencePrice > 0; }); if (!valid.length) return 0; return Math.round(valid.reduce((n,x) => { const referencePrice = x.regularPrice ?? x.price!; return n + (1 - (this.moiPrice(x)! / referencePrice)) * 100; }, 0) / valid.length); });
   listName = 'Metro Plus Dollard flyer'; showModal = false;
   draft: ItemDraft = this.emptyDraft();
   readonly allChecked = computed(() => this.pageItems().length > 0 && this.pageItems().every(x => this.selected().includes(x.id)));
@@ -178,7 +216,32 @@ export class AppComponent {
     return this.listName;
   }
   flyerPeriod(): string {
-    return this.language() === 'fr' ? '15–21 oct. 2026' : `${this.flyer.startDate}–${this.flyer.endDate}`;
+    const range = this.selectedFlyerRange();
+    return range ? this.formatFlyerPeriod(range.start, range.end) : '';
+  }
+  flyerRangeLabel(range: FlyerRange): string {
+    const name = range.period === 'current' ? this.tr('Current week', 'Semaine actuelle') : this.tr('Next week', 'Semaine prochaine');
+    return `${name} · ${this.formatFlyerPeriod(range.start, range.end)}`;
+  }
+  selectedFlyerRangeStatus(): string {
+    return this.selectedFlyer()
+      ? this.tr('Saved flyer data available', 'Données du circulaire enregistrées')
+      : this.tr('No saved data for this week', 'Aucune donnée enregistrée pour cette semaine');
+  }
+  private formatFlyerPeriod(start: Date, end: Date): string {
+    const locale = this.language() === 'fr' ? 'fr-CA' : 'en-CA';
+    const month = new Intl.DateTimeFormat(locale, { month: 'short' }).format(start);
+    return this.language() === 'fr'
+      ? `${start.getDate()}–${end.getDate()} ${month} ${end.getFullYear()}`
+      : `${month} ${start.getDate()}–${end.getDate()}, ${end.getFullYear()}`;
+  }
+  private weekThursday(day: Date): Date {
+    const start = new Date(day.getFullYear(), day.getMonth(), day.getDate());
+    start.setDate(start.getDate() - ((start.getDay() - 4 + 7) % 7));
+    return start;
+  }
+  private dateKey(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
   formatPrice(price: number | null): string {
     if (price === null) return '—';
@@ -229,7 +292,15 @@ export class AppComponent {
     return price;
   }
   emptyDraft(): ItemDraft { return { category: 'Produce', item: '', size: '', price: null, unit: 'each', regularPrice: null, note: '' }; }
-  discount(item: FlyerItem): number | null { return item.price !== null && item.regularPrice !== null && item.regularPrice > item.price ? Math.round((1 - item.price / item.regularPrice) * 100) : null; }
+  moiPrice(item: FlyerItem): number | null { return item.moiPrice ?? item.price; }
+  hasSeparateMoiPrice(item: FlyerItem): boolean { return item.moiPrice != null && item.moiPrice !== item.price; }
+  discount(item: FlyerItem): number | null {
+    const price = this.moiPrice(item);
+    const referencePrice = item.regularPrice ?? (this.hasSeparateMoiPrice(item) ? item.price : null);
+    return price !== null && referencePrice !== null && referencePrice > price
+      ? Math.round((1 - price / referencePrice) * 100)
+      : null;
+  }
   iconFor(category: string): string { return ({ 'Produce':'✳', 'Meat':'◒', 'Seafood':'🐟', 'Meat & seafood':'◒', 'Dairy & eggs':'◉', 'Pantry':'▤', 'Bakery':'♨', 'Frozen':'❄' } as Record<string,string>)[category] || '✳'; }
   frenchCategory(category: string): string { return ({ 'Produce':'Fruits et légumes', 'Meat':'Viande', 'Seafood':'Poisson et fruits de mer', 'Meat & seafood':'Viande et fruits de mer', 'Dairy & eggs':'Produits laitiers et œufs', 'Pantry':'Épicerie', 'Bakery':'Boulangerie', 'Frozen':'Surgelés' } as Record<string,string>)[category] ?? category; }
   frenchUnit(unit: string): string { return ({ 'each':'unité', 'pack':'paquet', 'bag':'sac', 'box':'boîte' } as Record<string,string>)[unit] ?? unit; }
@@ -246,24 +317,31 @@ export class AppComponent {
   saveItem(): void { if (!this.draft.item.trim()) return; this.items.update(a => [...a,{ ...this.draft, id: crypto.randomUUID(), category: this.draft.category.trim() || 'Other', item: this.draft.item.trim() }]); this.page.set(1); this.showModal = false; this.notify('Item added to your flyer grid'); }
   remove(id: string): void { this.items.update(a => a.filter(x => x.id !== id)); this.selected.update(a => a.filter(x => x !== id)); this.notify('Item removed'); }
   refreshFlyer(): void {
-    this.items.set(metroDollardFlyer.items.map(item => ({ ...item })));
+    const snapshot = this.selectedFlyer();
+    if (!snapshot) {
+      window.open(this.officialFlyerUrl, '_blank', 'noopener,noreferrer');
+      this.notify(this.tr('No saved data for this week. Opened Metro’s store flyer page; the grid was not changed.', 'Aucune donnée enregistrée pour cette semaine. La page du circulaire Metro a été ouverte; la grille n’a pas été modifiée.'));
+      return;
+    }
+    this.items.set(snapshot.items.map(item => ({ ...item })));
     this.listName = 'Metro Plus Dollard flyer';
     this.search.set('');
     this.selectedCategory.set('');
     this.selected.set([]);
     this.page.set(1);
-    this.notify('Flyer grid refreshed from the saved Metro Plus Dollard snapshot');
+    this.notify(`Flyer grid refreshed from saved dates ${this.flyerPeriod()}`);
   }
   newList(): void { this.listName = 'Metro weekly flyer'; this.items.set([]); this.page.set(1); this.notify('Started a fresh flyer grid'); }
   downloadJson(): void { const payload = { app: 'MetroGrid', version: 1, listName: this.listName, exportedAt: new Date().toISOString(), items: this.items() }; const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `metro-flyer-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); this.notify('Flyer grid saved as JSON'); }
   downloadCsv(): void {
     const headers = this.language() === 'fr'
-      ? ['Article', 'Catégorie', 'Format', 'Prix en solde', 'Prix régulier', 'Rabais (%)', 'Coché']
-      : ['Item', 'Category', 'Size / format', 'Sale price', 'Regular price', 'Discount (%)', 'Checked'];
+      ? ['Article', 'Catégorie', 'Format', 'Prix Moi', 'Prix du circulaire', 'Prix régulier', 'Rabais (%)', 'Coché']
+      : ['Item', 'Category', 'Size / format', 'Moi price', 'Flyer price', 'Regular price', 'Discount (%)', 'Checked'];
     const csvCell = (value: string | number | null) => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const rows = this.items().map(item => [
       this.displayItemName(item), this.categoryLabel(item.category), this.displaySize(item.size),
-      this.displayPrice(item.price, item.unit) ?? '', this.displayPrice(item.regularPrice, item.unit) ?? '',
+      this.displayPrice(this.moiPrice(item), item.unit) ?? '', this.displayPrice(item.price, item.unit) ?? '',
+      this.displayPrice(item.regularPrice, item.unit) ?? '',
       this.discount(item) ?? '', this.isChecked(item.id) ? (this.language() === 'fr' ? 'Oui' : 'Yes') : (this.language() === 'fr' ? 'Non' : 'No'),
     ]);
     const csv = '\uFEFF' + [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
@@ -280,6 +358,7 @@ export class AppComponent {
       'Started a fresh flyer grid': 'Nouvelle grille créée',
       'Flyer grid saved as JSON': 'Grille enregistrée au format JSON',
       'Could not read this JSON. Choose a MetroGrid export.': 'Impossible de lire ce fichier JSON. Choisissez un export MetroGrid.',
+      'No saved flyer data for the selected range; the grid was not changed.': 'Aucune donnée enregistrée pour cette période; la grille n’a pas été modifiée.',
     };
     const imported = message.match(/^Imported (\d+) flyer items$/);
     const french = imported ? `${imported[1]} articles du circulaire importés` : (frenchMessages[message] ?? message);

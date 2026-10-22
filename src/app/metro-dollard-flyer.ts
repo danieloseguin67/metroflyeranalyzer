@@ -4,6 +4,7 @@ export interface FlyerItem {
   item: string;
   size: string;
   price: number | null;
+  moiPrice?: number | null;
   unit: string;
   regularPrice: number | null;
   note: string;
