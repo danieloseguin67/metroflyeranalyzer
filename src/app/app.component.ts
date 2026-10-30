@@ -1,4 +1,4 @@
-import { Component, computed, signal } from '@angular/core';
+import { Component, HostListener, computed, signal } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { FlyerItem, metroDollardFlyer } from './metro-dollard-flyer';
@@ -94,6 +94,7 @@ const wineProfiles = winePairingGuide.profiles as WineProfile[];
 })
 export class AppComponent {
   readonly today = new Date();
+  private readonly rangeDate = signal(this.today);
   readonly language = signal<'en' | 'fr'>('fr');
   readonly flyerSnapshots: FlyerSnapshot[] = [
     { ...metroDollardFlyer, id: '2026-10-15' },
@@ -101,10 +102,7 @@ export class AppComponent {
   ];
   readonly officialFlyerUrl = 'https://www.metro.ca/en/find-a-grocery/170';
   readonly flyerRanges = computed<FlyerRange[]>(() => {
-    const today = new Date(this.today.getFullYear(), this.today.getMonth(), this.today.getDate());
-    const sinceThursday = (today.getDay() - 4 + 7) % 7;
-    const currentThursday = new Date(today);
-    currentThursday.setDate(today.getDate() - sinceThursday);
+    const currentThursday = this.weekThursday(this.rangeDate());
     return [0, 7].map((offset, index) => {
       const start = new Date(currentThursday);
       start.setDate(start.getDate() + offset);
@@ -230,10 +228,31 @@ export class AppComponent {
   }
   private formatFlyerPeriod(start: Date, end: Date): string {
     const locale = this.language() === 'fr' ? 'fr-CA' : 'en-CA';
-    const month = new Intl.DateTimeFormat(locale, { month: 'short' }).format(start);
+    const formatter = new Intl.DateTimeFormat(locale, { month: 'short' });
+    const month = formatter.format(start);
+    const endMonth = formatter.format(end);
+    if (start.getFullYear() !== end.getFullYear()) {
+      const date = new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'short', year: 'numeric' });
+      return `${date.format(start)} – ${date.format(end)}`;
+    }
+    if (start.getMonth() !== end.getMonth()) {
+      return this.language() === 'fr'
+        ? `${start.getDate()} ${month} – ${end.getDate()} ${endMonth} ${end.getFullYear()}`
+        : `${month} ${start.getDate()} – ${endMonth} ${end.getDate()}, ${end.getFullYear()}`;
+    }
     return this.language() === 'fr'
       ? `${start.getDate()}–${end.getDate()} ${month} ${end.getFullYear()}`
       : `${month} ${start.getDate()}–${end.getDate()}, ${end.getFullYear()}`;
+  }
+  @HostListener('window:focus')
+  @HostListener('window:pageshow')
+  updateFlyerWeeks(): void {
+    const previousCurrent = this.flyerRanges()[0].id;
+    const selected = this.selectedFlyerId();
+    this.rangeDate.set(new Date());
+    if (selected === previousCurrent || !this.flyerRanges().some(range => range.id === selected)) {
+      this.selectedFlyerId.set(this.flyerRanges()[0].id);
+    }
   }
   private weekThursday(day: Date): Date {
     const start = new Date(day.getFullYear(), day.getMonth(), day.getDate());
