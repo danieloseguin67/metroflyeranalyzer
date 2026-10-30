@@ -15,7 +15,7 @@ type ItemDraft = Omit<FlyerItem, 'id'>;
 type DinnerCostEstimate = { total: number; quantity: number; unit: string; unitPrice: number; priceUnit: string };
 type Wine = { id: string; name: string; brand: string; category: string; grapes: string; sizeMl: number; price: number | null; regularPrice: number | null; pairings: string[]; sourceUrl: string };
 type WineProfile = { id: string; name: string; profile: string; proteins: string[]; avoid?: string[]; wineCategories: string[] };
-type FlyerSnapshot = typeof metroDollardFlyer & { id: string };
+type FlyerSnapshot = Omit<typeof metroDollardFlyer, 'items'> & { id: string; items: FlyerItem[] };
 type FlyerRange = { id: string; start: Date; end: Date; period: 'current' | 'next'; snapshot: FlyerSnapshot | null };
 const wineCatalog = [...redWines, ...whiteWines, ...roseWines, ...sparklingWines] as Wine[];
 const wineProfiles = winePairingGuide.profiles as WineProfile[];
@@ -38,10 +38,10 @@ const wineProfiles = winePairingGuide.profiles as WineProfile[];
         <section class="content">
           <div class="heading-row"><div><div class="eyebrow"><span class="eyebrow-line"></span>{{ tr("METRO · WEEKLY DEALS", "METRO · OFFRES DE LA SEMAINE") }}</div><h1>{{ displayListName() }}</h1><p class="subtitle">{{ tr("Your flyer, neatly sorted. Keep the good stuff in sight.", "Votre circulaire bien organisé. Gardez les bonnes offres à portée de main.") }}</p></div><div class="heading-actions"><a class="button secondary" href="https://www.metro.ca/circulaire" target="_blank" rel="noopener"><span class="button-symbol">↗</span>{{ tr("Open Metro flyer", "Voir le circulaire Metro") }}</a><button class="button secondary" (click)="downloadCsv()"><span class="button-symbol">↓</span>{{ tr("Export CSV", "Exporter CSV") }}</button><button class="button primary" (click)="downloadJson()"><span class="button-symbol">↓</span>{{ tr("Export JSON", "Exporter JSON") }}</button></div></div>
 
-          <div class="refresh-strip"><span class="refresh-mark">↻</span><div class="refresh-store"><strong>{{ tr('Metro Plus Dollard · H8N 3G5', 'Metro Plus Dollard · H8N 3G5') }}</strong><small>{{ selectedFlyerRangeStatus() }}</small></div><label class="flyer-range-select">{{ tr('Flyer dates', 'Dates du circulaire') }}<select [ngModel]="selectedFlyerId()" (ngModelChange)="selectedFlyerId.set($event)"><option *ngFor="let range of flyerRanges()" [value]="range.id">{{ flyerRangeLabel(range) }}</option></select></label><button class="button secondary" [title]="tr('Reload saved data, or open Metro for a range without a saved snapshot.', 'Recharge les données enregistrées ou ouvre Metro si aucun instantané n’existe pour cette période.')" (click)="refreshFlyer()"><span class="button-symbol">↻</span>{{ tr('Refresh grid', 'Actualiser la grille') }}</button></div>
+          <div class="refresh-strip"><span class="refresh-mark">↻</span><div class="refresh-store"><strong>{{ tr('Metro Plus Dollard · H8N 3G5', 'Metro Plus Dollard · H8N 3G5') }}</strong><small>{{ selectedFlyerRangeStatus() }}</small></div><label class="flyer-range-select">{{ tr('Flyer dates', 'Dates du circulaire') }}<select [ngModel]="selectedFlyerId()" [disabled]="refreshing()" (ngModelChange)="selectedFlyerId.set($event); refreshError.set('')"><option *ngFor="let range of flyerRanges()" [value]="range.id">{{ flyerRangeLabel(range) }}</option></select></label><button class="button secondary" [disabled]="refreshing()" [title]="tr('Load the latest published prices.', 'Charger les derniers prix publiés.')" (click)="refreshFlyer()"><span class="button-symbol">↻</span>{{ refreshing() ? tr('Refreshing...', 'Actualisation...') : tr('Refresh grid', 'Actualiser la grille') }}</button></div>
 
           <div class="sample-notice" role="alert" *ngIf="refreshError()"><span>!</span><div><strong>{{ refreshError() }}</strong></div></div>
-          <div class="sample-notice"><span>✳</span><div><strong>Metro Plus Dollard · {{ flyerPeriod() }}</strong><small *ngIf="selectedFlyer()">{{ selectedFlyer()!.address }} · {{ tr('Saved flyer data for this period; it does not auto-refresh.', 'Données enregistrées pour cette période; elles ne se mettent pas à jour automatiquement.') }}</small><small *ngIf="!selectedFlyer()">{{ tr('No saved data for this period. Refresh opens Metro in a new tab; the current grid stays unchanged.', 'Aucune donnée enregistrée pour cette période. Actualiser ouvre Metro dans un nouvel onglet; la grille reste inchangée.') }}</small></div><a [href]="officialFlyerUrl" target="_blank" rel="noopener">{{ tr("Open official flyer", "Voir le circulaire officiel") }} ↗</a></div>
+          <div class="sample-notice"><span>✳</span><div><strong>Metro Plus Dollard · {{ tr('Grid data', 'Données de la grille') }} : {{ loadedFlyerPeriod() || tr('Imported or custom list', 'Liste importée ou personnalisée') }}</strong><small>{{ tr('Refresh loads published prices for the selected dates. If unavailable, your grid stays unchanged.', 'Actualiser charge les prix publiés pour les dates choisies. Si indisponibles, la grille reste inchangée.') }}</small></div><a [href]="officialFlyerUrl" target="_blank" rel="noopener">{{ tr("Open official flyer", "Voir le circulaire officiel") }} ↗</a></div>
 
           <section class="weight-converter" aria-labelledby="weight-converter-title">
             <div class="weight-converter-copy"><span class="weight-converter-icon">⇄</span><div><h2 id="weight-converter-title">{{ tr('Weight converter', 'Convertisseur de poids') }}</h2><p>{{ tr('Convert kilograms and pounds.', 'Convertissez les kilogrammes et les livres.') }}</p></div></div>
@@ -77,7 +77,7 @@ const wineProfiles = winePairingGuide.profiles as WineProfile[];
           <div class="table-card">
             <div class="table-head"><div><h2>{{ tr("Flyer items", "Articles du circulaire") }} <span class="total-pill">{{ filteredItems().length }}</span></h2><p>{{ tr("Sorted by category, then item name", "Triés par catégorie, puis par nom") }}</p></div><div class="table-controls"><label class="search-box"><span>⌕</span><input [ngModel]="search()" (ngModelChange)="setSearch($event)" [placeholder]="tr('Search category or item…', 'Rechercher une catégorie ou un article…')" [attr.aria-label]="tr('Search category or item', 'Rechercher une catégorie ou un article')"><kbd>⌘ K</kbd></label><button class="filter-button" (click)="toggleCategoryMenu()">☷ <span>{{ selectedCategory() ? categoryLabel(selectedCategory()) : tr('All categories', 'Toutes les catégories') }}</span>⌄</button><div class="category-menu" *ngIf="categoryMenu()"><button (click)="setCategory('')">{{ tr("All categories", "Toutes les catégories") }}</button><button *ngFor="let category of categories()" (click)="setCategory(category)">{{ categoryLabel(category) }}</button></div><button class="button add-button" (click)="openAdd()"><span>+</span>{{ tr("Add item", "Ajouter") }}</button><button class="more-button" [title]="tr('More actions', 'Plus d’options')" (click)="downloadJson()">···</button></div></div>
             <div class="table-scroll"><table><thead><tr><th class="check-col"><input type="checkbox" [checked]="allChecked()" (change)="toggleAll($event)" [attr.aria-label]="tr('Select all visible items', 'Sélectionner tous les articles visibles')"></th><th>{{ tr("ITEM", "ARTICLE") }} <span>↕</span></th><th>{{ tr("CATEGORY", "CATÉGORIE") }} <span>↕</span></th><th>{{ tr("SIZE / FORMAT", "FORMAT") }}</th><th>{{ tr("FLYER PRICE", "PRIX DU CIRCULAIRE") }} <span>↕</span></th><th>{{ tr("MOI PRICE", "PRIX MOI") }}</th><th>{{ tr("REGULAR", "RÉGULIER") }}</th><th>{{ tr("DEAL", "OFFRE") }}</th><th></th></tr></thead><tbody>
-              <tr *ngFor="let item of pageItems(); let i = index" [class.selected]="isChecked(item.id)"><td><input type="checkbox" [checked]="isChecked(item.id)" (change)="toggleItem(item.id)" [attr.aria-label]="tr('Select ' + displayItemName(item), 'Sélectionner ' + displayItemName(item))"></td><td><div class="item-cell"><span class="item-thumb" [class]="'item-thumb thumb-' + (i % 6)">{{ iconFor(item.category) }}</span><span><strong>{{ displayItemName(item) }}</strong><small>{{ item.note || tr('Metro weekly flyer', 'Circulaire hebdomadaire Metro') }}</small></span></div></td><td><span class="category-tag" [class]="'category-tag cat-' + categoryClass(item.category)"><i></i>{{ categoryLabel(item.category) }}</span></td><td class="muted-cell">{{ displaySize(item.size) }}</td><td><strong class="sale-price">{{ formatPrice(displayPrice(item.price, item.unit)) }}<small> / {{ displayPriceUnit(item.unit) }}</small></strong></td><td><strong class="sale-price">{{ formatPrice(displayPrice(moiPrice(item), item.unit)) }}<small> / {{ displayPriceUnit(item.unit) }}</small></strong><small class="price-source">{{ hasSeparateMoiPrice(item) ? tr('Metro&Moi member price', 'Prix membre Metro&Moi') : tr('Same as flyer price', 'Même prix que le circulaire') }}</small></td><td class="regular-price">{{ formatPrice(displayPrice(item.regularPrice, item.unit)) }}</td><td><span class="deal-badge" *ngIf="discount(item) as deal">-{{ deal }}%</span><span class="no-deal" *ngIf="!discount(item)">—</span></td><td><button class="row-menu" [attr.aria-label]="tr('Delete ' + displayItemName(item), 'Supprimer ' + displayItemName(item))" [title]="tr('Delete item', 'Supprimer l’article')" (click)="remove(item.id)">×</button></td></tr>
+              <tr *ngFor="let item of pageItems(); let i = index" [class.selected]="isChecked(item.id)"><td><input type="checkbox" [checked]="isChecked(item.id)" (change)="toggleItem(item.id)" [attr.aria-label]="tr('Select ' + displayItemName(item), 'Sélectionner ' + displayItemName(item))"></td><td><div class="item-cell"><span class="item-thumb" [class]="'item-thumb thumb-' + (i % 6)">{{ iconFor(item.category) }}</span><span><strong>{{ displayItemName(item) }}</strong><small>{{ item.note || tr('Metro weekly flyer', 'Circulaire hebdomadaire Metro') }}</small></span></div></td><td><span class="category-tag" [class]="'category-tag cat-' + categoryClass(item.category)"><i></i>{{ categoryLabel(item.category) }}</span></td><td class="muted-cell">{{ displaySize(item.size) }}</td><td><strong class="sale-price">{{ formatPrice(displayPrice(item.price, item.unit)) }}<small> / {{ displayPriceUnit(item.unit) }}</small></strong></td><td><strong class="sale-price">{{ formatPrice(displayPrice(moiPrice(item), item.unit)) }}<small> / {{ displayPriceUnit(item.unit) }}</small></strong><small class="price-source">{{ hasSeparateMoiPrice(item) ? tr('Metro&Moi member price', 'Prix membre Metro&Moi') : tr('Same as flyer price', 'Même prix que le circulaire') }}</small></td><td class="regular-price">{{ formatPrice(displayPrice(item.regularPrice, item.unit)) }}<small *ngIf="item.regularPrice !== null"> / {{ displayPriceUnit(item.unit) }}</small></td><td><span class="deal-badge" *ngIf="discount(item) as deal">-{{ deal }}%</span><span class="no-deal" *ngIf="!discount(item)">—</span></td><td><button class="row-menu" [attr.aria-label]="tr('Delete ' + displayItemName(item), 'Supprimer ' + displayItemName(item))" [title]="tr('Delete item', 'Supprimer l’article')" (click)="remove(item.id)">×</button></td></tr>
               <tr *ngIf="filteredItems().length === 0"><td colspan="9" class="empty-state"><span>⌕</span><strong>{{ tr("No items found", "Aucun article trouvé") }}</strong><small>{{ tr("Try another search or add an item to this flyer.", "Essayez une autre recherche ou ajoutez un article.") }}</small></td></tr>
             </tbody></table></div>
             <div class="table-foot"><span>{{ tr("Showing", "Affichage") }} <b>{{ showingStart() }}–{{ showingEnd() }}</b> {{ tr('of', 'sur') }} <b>{{ filteredItems().length }}</b> {{ tr("items", "articles") }}</span><span class="foot-legend"><i></i>{{ tr("Deal price is lower than regular price", "Le prix en solde est inférieur au prix régulier") }}</span><div class="pagination" [attr.aria-label]="tr('Flyer item pages', 'Pages des articles du circulaire')"><button (click)="goToPage(currentPage() - 1)" [disabled]="currentPage() === 1">{{ tr("Prior", "Précédent") }}</button><span>{{ tr('Page', 'Page') }} {{ currentPage() }} {{ tr('of', 'sur') }} {{ totalPages() }}</span><button (click)="goToPage(currentPage() + 1)" [disabled]="currentPage() === totalPages()">{{ tr("Next", "Suivant") }}</button></div><button class="json-mini" (click)="fileInput.click()">{{ tr("↑ Import JSON", "Importer JSON") }}</button></div>
@@ -119,6 +119,7 @@ export class AppComponent {
   readonly items = signal<FlyerItem[]>(metroDollardFlyer.items);
   readonly loadedFlyerPeriod = signal<string | null>(`${metroDollardFlyer.startDate} – ${metroDollardFlyer.endDate}`);
   readonly refreshError = signal('');
+  readonly refreshing = signal(false);
   readonly search = signal('');
   readonly selectedCategory = signal('');
   readonly categoryMenu = signal(false);
@@ -204,7 +205,7 @@ export class AppComponent {
   readonly showingStart = computed(() => this.filteredItems().length === 0 ? 0 : (this.currentPage() - 1) * this.pageSize + 1);
   readonly showingEnd = computed(() => Math.min(this.currentPage() * this.pageSize, this.filteredItems().length));
   readonly categories = computed(() => [...new Set(this.items().map(x => x.category))].sort((a,b) => a.localeCompare(b)));
-  readonly savingsPercent = computed(() => { const valid = this.items().filter(x => { const price = this.moiPrice(x); const referencePrice = x.regularPrice ?? (x.moiPrice != null ? x.price : null); return price !== null && referencePrice !== null && referencePrice > 0; }); if (!valid.length) return 0; return Math.round(valid.reduce((n,x) => { const referencePrice = x.regularPrice ?? x.price!; return n + (1 - (this.moiPrice(x)! / referencePrice)) * 100; }, 0) / valid.length); });
+  readonly savingsPercent = computed(() => { const deals = this.items().map(item => this.discount(item)).filter((deal): deal is number => deal !== null); return deals.length ? Math.round(deals.reduce((sum, deal) => sum + deal, 0) / deals.length) : 0; });
   listName = 'Metro Plus Dollard flyer'; showModal = false;
   draft: ItemDraft = this.emptyDraft();
   readonly allChecked = computed(() => this.pageItems().length > 0 && this.pageItems().every(x => this.selected().includes(x.id)));
@@ -266,7 +267,7 @@ export class AppComponent {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
   formatPrice(price: number | null): string {
-    if (price === null) return '—';
+    if (price === null || !Number.isFinite(price) || price < 0) return '—';
     return new Intl.NumberFormat(this.language() === 'fr' ? 'fr-CA' : 'en-CA', { style: 'currency', currency: 'CAD' }).format(price);
   }
   categoryLabel(category: string): string { return this.tr(category, this.frenchCategory(category)); }
@@ -338,39 +339,50 @@ export class AppComponent {
   closeModal(): void { this.showModal = false; }
   saveItem(): void { if (!this.draft.item.trim()) return; this.items.update(a => [...a,{ ...this.draft, id: crypto.randomUUID(), category: this.draft.category.trim() || 'Other', item: this.draft.item.trim() }]); this.page.set(1); this.showModal = false; this.notify('Item added to your flyer grid'); }
   remove(id: string): void { this.items.update(a => a.filter(x => x.id !== id)); this.selected.update(a => a.filter(x => x !== id)); this.notify('Item removed'); }
-  refreshFlyer(): void {
-    const snapshot = this.selectedFlyer();
-    if (!snapshot) {
-      this.refreshError.set(this.tr(
-        `Prices were not refreshed: no flyer data is available for ${this.flyerPeriod()}. Import this week’s flyer JSON to update regular and Moi prices.`,
-        `Les prix n’ont pas été actualisés : aucune donnée disponible pour la période ${this.flyerPeriod()}. Importez le JSON du circulaire de cette semaine pour mettre à jour les prix réguliers et Moi.`
-      ));
-      window.open(this.officialFlyerUrl, '_blank', 'noopener,noreferrer');
-      this.notify(this.tr('No saved data for this week. Opened Metro’s store flyer page; the grid was not changed.', 'Aucune donnée enregistrée pour cette semaine. La page du circulaire Metro a été ouverte; la grille n’a pas été modifiée.'));
-      return;
-    }
-    this.items.set(snapshot.items.map(item => ({ ...item })));
-    this.loadedFlyerPeriod.set(`${snapshot.startDate} – ${snapshot.endDate}`);
+  async refreshFlyer(): Promise<void> {
+    if (this.refreshing()) return;
+    const range = this.selectedFlyerRange();
+    this.refreshing.set(true);
     this.refreshError.set('');
-    this.listName = 'Metro Plus Dollard flyer';
-    this.search.set('');
-    this.selectedCategory.set('');
-    this.selected.set([]);
-    this.page.set(1);
-    this.notify(`Flyer grid refreshed from saved dates ${this.flyerPeriod()}`);
+    try {
+      const url = new URL(`flyers/${range.id}.json`, document.baseURI);
+      const response = await fetch(url, { cache: 'no-store' });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const snapshot = await response.json() as FlyerSnapshot;
+      if (!snapshot || snapshot.id !== range.id || typeof snapshot.startDate !== 'string' || typeof snapshot.endDate !== 'string' || !Array.isArray(snapshot.items) || !snapshot.items.every(item =>
+        item && typeof item.id === 'string' && typeof item.item === 'string' && typeof item.category === 'string' &&
+        typeof item.unit === 'string' && typeof item.size === 'string' &&
+        [item.price, item.regularPrice, item.moiPrice].every(price => price == null || (typeof price === 'number' && Number.isFinite(price) && price >= 0))
+      )) throw new Error('Invalid flyer data');
+      this.items.set(snapshot.items.map(item => ({ ...item })));
+      this.loadedFlyerPeriod.set(`${snapshot.startDate} – ${snapshot.endDate}`);
+      this.listName = 'Metro Plus Dollard flyer';
+      this.search.set('');
+      this.selectedCategory.set('');
+      this.selected.set([]);
+      this.page.set(1);
+      this.notify(this.tr(`Prices refreshed for ${this.formatFlyerPeriod(range.start, range.end)}`, `Prix actualisés pour la période ${this.formatFlyerPeriod(range.start, range.end)}`));
+    } catch {
+      this.refreshError.set(this.tr(
+        `Prices were not refreshed for ${this.formatFlyerPeriod(range.start, range.end)}. The published flyer data is unavailable or could not be loaded. Your grid is unchanged.`,
+        `Les prix n’ont pas été actualisés pour la période ${this.formatFlyerPeriod(range.start, range.end)}. Les données publiées sont indisponibles ou n’ont pas pu être chargées. La grille reste inchangée.`
+      ));
+    } finally {
+      this.refreshing.set(false);
+    }
   }
   newList(): void { this.loadedFlyerPeriod.set(null); this.refreshError.set(''); this.listName = 'Metro weekly flyer'; this.items.set([]); this.page.set(1); this.notify('Started a fresh flyer grid'); }
   downloadJson(): void { const payload = { app: 'MetroGrid', version: 1, listName: this.listName, exportedAt: new Date().toISOString(), items: this.items() }; const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `metro-flyer-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); this.notify('Flyer grid saved as JSON'); }
   downloadCsv(): void {
     const headers = this.language() === 'fr'
-      ? ['Article', 'Catégorie', 'Format', 'Prix Moi', 'Prix du circulaire', 'Prix régulier', 'Rabais (%)', 'Coché']
-      : ['Item', 'Category', 'Size / format', 'Moi price', 'Flyer price', 'Regular price', 'Discount (%)', 'Checked'];
+      ? ['Article', 'Catégorie', 'Format', 'Prix Moi', 'Prix du circulaire', 'Prix régulier', 'Unité du prix', 'Rabais (%)', 'Coché']
+      : ['Item', 'Category', 'Size / format', 'Moi price', 'Flyer price', 'Regular price', 'Price unit', 'Discount (%)', 'Checked'];
     const csvCell = (value: string | number | null) => `"${String(value ?? '').replace(/"/g, '""')}"`;
     const rows = this.items().map(item => [
       this.displayItemName(item), this.categoryLabel(item.category), this.displaySize(item.size),
       this.displayPrice(this.moiPrice(item), item.unit) ?? '', this.displayPrice(item.price, item.unit) ?? '',
       this.displayPrice(item.regularPrice, item.unit) ?? '',
-      this.discount(item) ?? '', this.isChecked(item.id) ? (this.language() === 'fr' ? 'Oui' : 'Yes') : (this.language() === 'fr' ? 'Non' : 'No'),
+      this.displayPriceUnit(item.unit), this.discount(item) ?? '', this.isChecked(item.id) ? (this.language() === 'fr' ? 'Oui' : 'Yes') : (this.language() === 'fr' ? 'Non' : 'No'),
     ]);
     const csv = '\uFEFF' + [headers, ...rows].map(row => row.map(csvCell).join(',')).join('\r\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });

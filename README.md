@@ -36,7 +36,7 @@ Grid edits are held in the current browser session. Export a JSON copy if you wa
 
 Dinner portion presets are configured in [`src/app/dinner-portion-sizes.json`](src/app/dinner-portion-sizes.json). Values are grams per person (raw weight) for `small`, `medium`, and `large`. Edit and commit this file to change the presets; the GitHub Pages workflow includes the updated values in its next build.
 
-The date selector always offers the current and next Thursday–Wednesday periods. Saved snapshots currently cover October 15–21 and October 22–28, 2026. Refresh loads the selected period's matching saved flyer data; for a week without a snapshot, it opens the Metro store flyer page in a new tab and leaves the grid unchanged. This static GitHub Pages app does not fetch live flyer data. Additional weekly snapshots can be added to the `flyerSnapshots` list in `src/app/app.component.ts`.
+The date selector always offers the current and next Thursday–Wednesday periods. Saved snapshots currently cover October 15–21 and October 22–28, 2026. Refresh requests `flyers/YYYY-MM-DD.json` from the deployed site with browser caching disabled. The URL respects the repository base path on GitHub Pages. It replaces flyer, regular, and Moi prices together and preserves the grid if the file is missing, invalid, or unreachable. This static app does not scrape Metro or obtain live prices automatically. To publish a new week, add a verified `src/app/metro-dollard-flyer-YYYY-MM-DD.ts` snapshot in the same format as the existing files and deploy. The build generates dated JSON files in `public/flyers` and includes them in the Pages artifact. The current and next week remain selectable even before their prices are published.
 
 ## Deploy to GitHub Pages
 
@@ -47,3 +47,5 @@ The workflow in `.github/workflows/deploy-pages.yml` builds and deploys the app 
 3. Push a commit to `main` or run **Deploy to GitHub Pages** from the **Actions** tab.
 
 The workflow builds with a base path derived from the repository name, then deploys the Angular browser output. This configuration is intended for a project Pages site (`<owner>.github.io/<repository>/`).
+
+Verify prices and deployment refresh with `npm run build -- --base-href /metroflyeranalysis/` followed by `npm test`. The deployment workflow runs these checks before publishing.
