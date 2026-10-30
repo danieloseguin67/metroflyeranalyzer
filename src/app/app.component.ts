@@ -40,6 +40,7 @@ const wineProfiles = winePairingGuide.profiles as WineProfile[];
 
           <div class="refresh-strip"><span class="refresh-mark">↻</span><div class="refresh-store"><strong>{{ tr('Metro Plus Dollard · H8N 3G5', 'Metro Plus Dollard · H8N 3G5') }}</strong><small>{{ selectedFlyerRangeStatus() }}</small></div><label class="flyer-range-select">{{ tr('Flyer dates', 'Dates du circulaire') }}<select [ngModel]="selectedFlyerId()" (ngModelChange)="selectedFlyerId.set($event)"><option *ngFor="let range of flyerRanges()" [value]="range.id">{{ flyerRangeLabel(range) }}</option></select></label><button class="button secondary" [title]="tr('Reload saved data, or open Metro for a range without a saved snapshot.', 'Recharge les données enregistrées ou ouvre Metro si aucun instantané n’existe pour cette période.')" (click)="refreshFlyer()"><span class="button-symbol">↻</span>{{ tr('Refresh grid', 'Actualiser la grille') }}</button></div>
 
+          <div class="sample-notice" role="alert" *ngIf="refreshError()"><span>!</span><div><strong>{{ refreshError() }}</strong></div></div>
           <div class="sample-notice"><span>✳</span><div><strong>Metro Plus Dollard · {{ flyerPeriod() }}</strong><small *ngIf="selectedFlyer()">{{ selectedFlyer()!.address }} · {{ tr('Saved flyer data for this period; it does not auto-refresh.', 'Données enregistrées pour cette période; elles ne se mettent pas à jour automatiquement.') }}</small><small *ngIf="!selectedFlyer()">{{ tr('No saved data for this period. Refresh opens Metro in a new tab; the current grid stays unchanged.', 'Aucune donnée enregistrée pour cette période. Actualiser ouvre Metro dans un nouvel onglet; la grille reste inchangée.') }}</small></div><a [href]="officialFlyerUrl" target="_blank" rel="noopener">{{ tr("Open official flyer", "Voir le circulaire officiel") }} ↗</a></div>
 
           <section class="weight-converter" aria-labelledby="weight-converter-title">
@@ -116,6 +117,8 @@ export class AppComponent {
   readonly selectedFlyerRange = computed(() => this.flyerRanges().find(range => range.id === this.selectedFlyerId()) ?? this.flyerRanges()[0]);
   readonly selectedFlyer = computed(() => this.selectedFlyerRange()?.snapshot ?? null);
   readonly items = signal<FlyerItem[]>(metroDollardFlyer.items);
+  readonly loadedFlyerPeriod = signal<string | null>(`${metroDollardFlyer.startDate} – ${metroDollardFlyer.endDate}`);
+  readonly refreshError = signal('');
   readonly search = signal('');
   readonly selectedCategory = signal('');
   readonly categoryMenu = signal(false);
@@ -338,11 +341,17 @@ export class AppComponent {
   refreshFlyer(): void {
     const snapshot = this.selectedFlyer();
     if (!snapshot) {
+      this.refreshError.set(this.tr(
+        `Prices were not refreshed: no flyer data is available for ${this.flyerPeriod()}. Import this week’s flyer JSON to update regular and Moi prices.`,
+        `Les prix n’ont pas été actualisés : aucune donnée disponible pour la période ${this.flyerPeriod()}. Importez le JSON du circulaire de cette semaine pour mettre à jour les prix réguliers et Moi.`
+      ));
       window.open(this.officialFlyerUrl, '_blank', 'noopener,noreferrer');
       this.notify(this.tr('No saved data for this week. Opened Metro’s store flyer page; the grid was not changed.', 'Aucune donnée enregistrée pour cette semaine. La page du circulaire Metro a été ouverte; la grille n’a pas été modifiée.'));
       return;
     }
     this.items.set(snapshot.items.map(item => ({ ...item })));
+    this.loadedFlyerPeriod.set(`${snapshot.startDate} – ${snapshot.endDate}`);
+    this.refreshError.set('');
     this.listName = 'Metro Plus Dollard flyer';
     this.search.set('');
     this.selectedCategory.set('');
@@ -350,7 +359,7 @@ export class AppComponent {
     this.page.set(1);
     this.notify(`Flyer grid refreshed from saved dates ${this.flyerPeriod()}`);
   }
-  newList(): void { this.listName = 'Metro weekly flyer'; this.items.set([]); this.page.set(1); this.notify('Started a fresh flyer grid'); }
+  newList(): void { this.loadedFlyerPeriod.set(null); this.refreshError.set(''); this.listName = 'Metro weekly flyer'; this.items.set([]); this.page.set(1); this.notify('Started a fresh flyer grid'); }
   downloadJson(): void { const payload = { app: 'MetroGrid', version: 1, listName: this.listName, exportedAt: new Date().toISOString(), items: this.items() }; const blob = new Blob([JSON.stringify(payload,null,2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `metro-flyer-${new Date().toISOString().slice(0,10)}.json`; a.click(); URL.revokeObjectURL(url); this.notify('Flyer grid saved as JSON'); }
   downloadCsv(): void {
     const headers = this.language() === 'fr'
@@ -369,7 +378,7 @@ export class AppComponent {
     const a = document.createElement('a'); a.href = url; a.download = `metro-flyer-${new Date().toISOString().slice(0, 10)}.csv`; a.click(); URL.revokeObjectURL(url);
     this.notify(this.language() === 'fr' ? 'Grille exportée en CSV' : 'Flyer grid exported as CSV');
   }
-  importJson(event: Event): void { const input = event.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const parsed: unknown = JSON.parse(String(reader.result)); const raw = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' && 'items' in parsed ? (parsed as {items: unknown}).items : null); if (!Array.isArray(raw) || !raw.every(x => x && typeof x === 'object' && typeof (x as Record<string,unknown>)['item'] === 'string' && typeof (x as Record<string,unknown>)['category'] === 'string')) throw new Error('Invalid'); const imported = raw.map((x,i) => { const value = x as Record<string,unknown>; return { id: typeof value['id'] === 'string' ? value['id'] : `import-${Date.now()}-${i}`, category: String(value['category']) === 'Meat & seafood' ? (String(value['id'] ?? '').startsWith('dollard-seafood-') ? 'Seafood' : 'Meat') : String(value['category']), item: String(value['item']), size: String(value['size'] ?? ''), price: typeof value['price'] === 'number' ? value['price'] : null, unit: String(value['unit'] ?? 'each'), regularPrice: typeof value['regularPrice'] === 'number' ? value['regularPrice'] : null, note: String(value['note'] ?? '') }; }); this.items.set(imported); if (!Array.isArray(parsed) && parsed && typeof parsed === 'object' && 'listName' in parsed && typeof (parsed as {listName?:unknown}).listName === 'string') this.listName = (parsed as {listName:string}).listName; this.search.set(''); this.selectedCategory.set(''); this.page.set(1); this.selected.set([]); this.notify(`Imported ${imported.length} flyer items`); } catch { this.notify('Could not read this JSON. Choose a MetroGrid export.'); } input.value = ''; }; reader.readAsText(file); }
+  importJson(event: Event): void { const input = event.target as HTMLInputElement; const file = input.files?.[0]; if (!file) return; const reader = new FileReader(); reader.onload = () => { try { const parsed: unknown = JSON.parse(String(reader.result)); const raw = Array.isArray(parsed) ? parsed : (parsed && typeof parsed === 'object' && 'items' in parsed ? (parsed as {items: unknown}).items : null); if (!Array.isArray(raw) || !raw.every(x => x && typeof x === 'object' && typeof (x as Record<string,unknown>)['item'] === 'string' && typeof (x as Record<string,unknown>)['category'] === 'string')) throw new Error('Invalid'); const imported = raw.map((x,i) => { const value = x as Record<string,unknown>; return { id: typeof value['id'] === 'string' ? value['id'] : `import-${Date.now()}-${i}`, category: String(value['category']) === 'Meat & seafood' ? (String(value['id'] ?? '').startsWith('dollard-seafood-') ? 'Seafood' : 'Meat') : String(value['category']), item: String(value['item']), size: String(value['size'] ?? ''), price: typeof value['price'] === 'number' ? value['price'] : null, moiPrice: typeof value['moiPrice'] === 'number' ? value['moiPrice'] : null, unit: String(value['unit'] ?? 'each'), regularPrice: typeof value['regularPrice'] === 'number' ? value['regularPrice'] : null, note: String(value['note'] ?? '') }; }); this.items.set(imported); this.loadedFlyerPeriod.set(null); this.refreshError.set(''); if (!Array.isArray(parsed) && parsed && typeof parsed === 'object' && 'listName' in parsed && typeof (parsed as {listName?:unknown}).listName === 'string') this.listName = (parsed as {listName:string}).listName; this.search.set(''); this.selectedCategory.set(''); this.page.set(1); this.selected.set([]); this.notify(`Imported ${imported.length} flyer items`); } catch { this.notify('Could not read this JSON. Choose a MetroGrid export.'); } input.value = ''; }; reader.readAsText(file); }
   private notify(message: string): void {
     const frenchMessages: Record<string, string> = {
       'Item added to your flyer grid': 'Article ajouté à votre grille',
